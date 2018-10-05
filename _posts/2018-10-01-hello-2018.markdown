@@ -1,7 +1,7 @@
 ---
 layout:     post
 title:      "github文章模板"
-subtitle:   " \"Hello World, Hello Blog\""
+subtitle:   " \"github博客的文章模板\""
 date:       2018-10-01 12:00:00
 author:     "青乡"
 header-img: "img/post-bg-2015.jpg"
