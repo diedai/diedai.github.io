@@ -71,5 +71,7 @@ osNetAlgorithmSecure
 
 # 如何弄一个markdown简历
 1.在线编辑，实时预览
+https://maxiang.io/
+
 2.导出pdf
 利用浏览器的导出pdf功能
