@@ -204,12 +204,6 @@ _config.yml
 
 
 
-# 官方帮助&教程&文档
-
-help.github.com
-
-
-
 # 默认首页
 
 大概是这个样子。
@@ -251,6 +245,24 @@ https://pages-themes.github.io/cayman/
 5.由于文章也在代码仓库里，所以天然具备版本控制的功能。
 
 
+
+# 参考
+
+1.官方文档
+help.github.com 
+
+2.本博客网站模板的教程
+https://github.com/qiubaiying/qiubaiying.github.io
+https://www.jianshu.com/p/e68fba58f75c
+
+3.本博客网站模板fork
+https://github.com/Huxpro/huxpro.github.io
+
+4.jellyII官方教程
+https://jekyllcn.com/docs/github-pages/
+
+5.好文章
+http://jmcglone.com/guides/github-pages/
 
 
 
