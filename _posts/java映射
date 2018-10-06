@@ -1,0 +1,169 @@
+---
+layout:     post
+title:      "java映射"
+subtitle:   " \"映射\""
+date:       2018-10-03 06:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - DataStructure&Algorithm
+---
+
+
+
+# 哈希函数
+
+## 什么是哈希函数？
+
+1.输入 
+任意长度的数据
+
+2.输出 
+固定长度的数据。比如，MD5 100多位；SHA-2 200多位。位数越多，越安全，因为越不容易重复。
+
+总结 
+本质上是一个算法，按固定的算术规则计算得到的值。
+
+从数学的角度看，就是一个函数。函数也是输入和输出。
+
+## MD5
+
+## SHA-2
+
+## RSA也是
+
+只不过有秘钥。
+
+# 什么是映射?
+
+1.就是键值对
+
+2.映射=数组(数据结构) + 哈希函数(算法) 
+1）写数据 
+输入：键 
+输出：哈希值 //作用：作为数组的索引
+
+算法：哈希函数
+
+2）读数据 
+输入：键 
+输出：固定值 
+最终输出：键值对的值
+
+算法：哈希函数
+
+（示意图）
+
+![图片来自维基百科.png](https://upload-images.jianshu.io/upload_images/6367548-3d908987eafc5796.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+
+
+# jdk里的映射之发展史
+
+1.最早是Hashtable 
+早期只有Hashtable。
+
+2.后来是HashMap 
+jdk5之后。
+
+# Hashtable
+
+![图片来自jdk api文档.png](https://upload-images.jianshu.io/upload_images/6367548-f6c425de4d556ff9.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+
+
+# Hashtable与HashMap的区别？
+底层原理和底层实现？ 
+HashMap是对Hashtable的完善？具体是完善了什么东西？
+底层原理差不多，主要是细节，包括算法细节的完善。
+
+# Hashtable与 字典类Dictionary和属性类Properties的区别？
+1）HashMap实现了Map接口，Hashtable继承了抽象类Dictionary
+旧版本jdk：Hashtable以及实现的接口都是旧版本jdk1.0。
+新版本jdk：HashMap以及实现的接口都是新版本jdk2.0。
+
+2）读取配置文件
+旧版本jdk：Properties类也是旧版本jdk1.0，继承了HashMap，作用是专门用于从配置文件读取键值对。
+新版本jdk：HashMap没有专门用于从配置文件读取键值对的子类。但是开源项目common configuration封装了HashMap，提供了读取配置文件的功能。
+
+
+# 总结
+
+1.hash哈希/hash table 哈希表 
+2.散列/散列表 
+3.字典dictionary 
+4.关联数组associated array 
+5.map映射 
+以上所有叫法都是映射，什么是映射？就是键值对。
+
+# 映射函数(即哈希函数)又是干什么的？有什么作用？
+
+映射 = 数组(数据结构) + 映射函数(算法)
+
+# 映射底层是怎么实现的？
+
+## 哈希表
+
+separate chaining and open addressing. 
+1.直接定址法 
+? 
+2.数字分析法 
+?
+
+## 平衡二叉树(红黑树)
+
+?
+
+#是否同步
+1.HashMap
+不同步。
+
+2.ConcurrentHashMap
+与HashMap的唯一区别就是同步。
+
+注：Hashtable也是同步的，但是已被弃用！
+
+3.Collections.同步Map();
+与并发HashMap的区别？
+并发HashMap，是使用同步关键字synchronized同步方法。//Hashtable的同步也是同步方法。
+
+Collections.同步Map(); 是使用使用同步关键字同步对象和同步代码块。//其他的Collections.同步集合数据类型/映射数据类型(); 也是同理。
+
+
+# 是否插入有序LinkedHashMap
+与HashMap的唯一区别就是确保插入顺序。
+
+实现原理也是双链表。
+
+# 是否数据有序TreeMap
+与HashMap的唯一区别是，数据有序。
+
+---
+List、Set、Map的区别？
+区别？
+1.List
+是先插入数据到集合，然后想排序的时候再给数据排序。
+
+步骤
+1）插入数据
+2）排序数据
+怎么排序？使用各种算法书籍里都有介绍的排序算法。
+
+排序算法是怎么排序的？本质是比较数据和交换数据，但是研究排序算法的目的是为了更快的排序，所以排序算法本质上是在研究如何更快的比较数据和交换数据。
+
+2.TreeMap
+是插入数据的时候，就开始排序，也是比较数据和交换数据。
+
+如果是普通的比较数据和数据数据，那么速度很慢。
+怎么才能快起来？使用平衡二叉树(jdk使用的是平衡二叉树中的红黑树)！
+
+# 最佳实践
+1.Hashtable及其实现接口和子类
+已经被官方弃用。
+
+2.HashMap、并发ConcurrentHashMap、数据有序TreeMap、插入有序LinkedHashMap
+推荐使用。
+
+
+
+# 参考
+http://zhaox.github.io/2016/07/05/hashmap-vs-hashtable
