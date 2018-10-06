@@ -138,28 +138,28 @@ Collections.同步Map(); 是使用使用同步关键字同步对象和同步代�
 与HashMap的唯一区别是，数据有序。
 
 ---
-List、Set、Map的区别？
-1.List
+List、Set、Map的区别？  
+1.List  
 是先插入数据到集合，然后想排序的时候再给数据排序。
 
-步骤
-1）插入数据
-2）排序数据
+步骤  
+1）插入数据  
+2）排序数据  
 怎么排序？使用各种算法书籍里都有介绍的排序算法。
 
 排序算法是怎么排序的？本质是比较数据和交换数据，但是研究排序算法的目的是为了更快的排序，所以排序算法本质上是在研究如何更快的比较数据和交换数据。
 
-2.TreeSet/TreeMap
+2.TreeSet/TreeMap  
 是插入数据的时候，就开始排序，也是比较数据和交换数据。
 
-如果是普通的比较数据和数据数据，那么速度很慢。
+如果是普通的比较数据和数据数据，那么速度很慢。  
 怎么才能快起来？使用平衡二叉树(jdk使用的是平衡二叉树中的红黑树)！
 
 # 最佳实践
-1.Hashtable及其实现接口和子类
+1.Hashtable及其实现接口和子类  
 已经被官方弃用。
 
-2.HashMap、并发ConcurrentHashMap、数据有序TreeMap、插入有序LinkedHashMap
+2.HashMap、并发ConcurrentHashMap、数据有序TreeMap、插入有序LinkedHashMap  
 推荐使用。
 
 
