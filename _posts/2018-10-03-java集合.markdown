@@ -603,6 +603,8 @@ static <T> SortedSet<T>	synchronizedSortedSet(SortedSet<T> s)
 Returns a synchronized (thread-safe) sorted set backed by the specified sorted set.
 ```
 
+https://dzone.com/articles/sorting-java-arraylist
+
 
 
 
