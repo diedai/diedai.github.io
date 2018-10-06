@@ -289,9 +289,61 @@ Map也有排序，TreeMap entends SortedMap。
 
 就是一个一个的比较，循环比较。速度是N。
 
+```
+//TreeMap
+public V put(K key, V value) {
+        Entry<K,V> t = root;
+        if (t == null) { //插入第一个元素
+            compare(key, key); // type (and possibly null) check
 
-
-![image.png](https://upload-images.jianshu.io/upload_images/6367548-4c463a150fe01f57.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+            root = new Entry<>(key, value, null);
+            size = 1;
+            modCount++;
+            return null;
+        }
+        int cmp;
+        Entry<K,V> parent;
+        // split comparator and comparable paths
+        Comparator<? super K> cpr = comparator;
+        if (cpr != null) { //传入比较器
+            do {
+                parent = t;
+                cmp = cpr.compare(key, t.key);
+                if (cmp < 0)
+                    t = t.left;
+                else if (cmp > 0)
+                    t = t.right;
+                else
+                    return t.setValue(value);
+            } while (t != null);
+        }
+        else { //默认比较器(key的默认比较器，比如String实现了自己的compare()方法 )
+            if (key == null)
+                throw new NullPointerException();
+            @SuppressWarnings("unchecked")
+                Comparable<? super K> k = (Comparable<? super K>) key;
+            do {
+                parent = t;
+                cmp = k.compareTo(t.key);
+                if (cmp < 0)
+                    t = t.left;
+                else if (cmp > 0)
+                    t = t.right;
+                else
+                    return t.setValue(value);
+            } while (t != null);
+        }
+        Entry<K,V> e = new Entry<>(key, value, parent);
+        if (cmp < 0)
+            parent.left = e;
+        else
+            parent.right = e;
+        fixAfterInsertion(e);
+        size++;
+        modCount++;
+        return null;
+    }
+```
 
 
 
@@ -517,63 +569,60 @@ Collections.同步集合(集合类型);
 
 具体的代码实现是，1.原始集合 2同步对象 ，1和2的组合，实现同步。
 
-
-
 ```
-//TreeMap
-public V put(K key, V value) {
-        Entry<K,V> t = root;
-        if (t == null) { //插入第一个元素
-            compare(key, key); // type (and possibly null) check
-
-            root = new Entry<>(key, value, null);
-            size = 1;
-            modCount++;
-            return null;
-        }
-        int cmp;
-        Entry<K,V> parent;
-        // split comparator and comparable paths
-        Comparator<? super K> cpr = comparator;
-        if (cpr != null) { //传入比较器
-            do {
-                parent = t;
-                cmp = cpr.compare(key, t.key);
-                if (cmp < 0)
-                    t = t.left;
-                else if (cmp > 0)
-                    t = t.right;
-                else
-                    return t.setValue(value);
-            } while (t != null);
-        }
-        else { //默认比较器(key的默认比较器，比如String实现了自己的compare()方法 )
-            if (key == null)
-                throw new NullPointerException();
-            @SuppressWarnings("unchecked")
-                Comparable<? super K> k = (Comparable<? super K>) key;
-            do {
-                parent = t;
-                cmp = k.compareTo(t.key);
-                if (cmp < 0)
-                    t = t.left;
-                else if (cmp > 0)
-                    t = t.right;
-                else
-                    return t.setValue(value);
-            } while (t != null);
-        }
-        Entry<K,V> e = new Entry<>(key, value, parent);
-        if (cmp < 0)
-            parent.left = e;
-        else
-            parent.right = e;
-        fixAfterInsertion(e);
-        size++;
-        modCount++;
-        return null;
+public static <T> Set<T> synchronizedSet(Set<T> s) { //得到一个同步集合类
+        return new SynchronizedSet<>(s); 
     }
+    
+
+/**
+     * @serial include
+     */
+    static class SynchronizedCollection<E> implements Collection<E>, Serializable {
+        private static final long serialVersionUID = 3053995032091335093L;
+
+        final Collection<E> c;  // Backing Collection
+        final Object mutex;     // Object on which to synchronize //同步对象
+
+        SynchronizedCollection(Collection<E> c) {
+            this.c = Objects.requireNonNull(c);
+            mutex = this;
+        }
+
+        SynchronizedCollection(Collection<E> c, Object mutex) {
+            this.c = Objects.requireNonNull(c);
+            this.mutex = Objects.requireNonNull(mutex);
+        }
+
+        public int size() {
+            synchronized (mutex) {return c.size();}
+        }
+        public boolean isEmpty() {
+            synchronized (mutex) {return c.isEmpty();}
+        }
+        public boolean contains(Object o) {
+            synchronized (mutex) {return c.contains(o);}
+        }
+        public Object[] toArray() {
+            synchronized (mutex) {return c.toArray();}
+        }
+        public <T> T[] toArray(T[] a) {
+            synchronized (mutex) {return c.toArray(a);}
+        }
+
+        public Iterator<E> iterator() {
+            return c.iterator(); // Must be manually synched by user!
+        }
+
+        public boolean add(E e) { //同步方法
+            synchronized (mutex) {return c.add(e);} //同步代码块
+        }
+        public boolean remove(Object o) {
+            synchronized (mutex) {return c.remove(o);}
+        }
 ```
+
+
 
 
 
