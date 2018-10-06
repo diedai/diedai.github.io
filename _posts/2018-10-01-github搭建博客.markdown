@@ -135,7 +135,7 @@ gitbook
 
 
 
-（选择主题）
+（setting里面设置）
 
 ![img](/img/in-post/69942444.png)
 
