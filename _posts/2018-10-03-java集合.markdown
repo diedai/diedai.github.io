@@ -259,38 +259,67 @@ LinkedList源码-读数据
 
 
 
-List没有有排序的集合类。
+List没有有排序的集合类。//List接口有sort()方法，所以实现类ArrayList和LinkedList都有实现sort()方法。
 
 
 
-Set有，TreeSet extends SortedSet。
-
-
-
+Set有，TreeSet extends SortedSet。//封装了TreeMap，本质上和TreeMap一样。
 Map也有排序，TreeMap entends SortedMap。
 
 
 
 ---
+源码实现？哪一种排序算法？
+
+1.ArrayList
+```
+private static void mergeSort(Object[] src,
+                                  Object[] dest,
+                                  int low,
+                                  int high,
+                                  int off) { //jdk早期就是使用归并排序这种算法，后来版本有优化
+        int length = high - low;
+
+        // Insertion sort on smallest arrays
+        if (length < INSERTIONSORT_THRESHOLD) { //1.递归的结束条件：这里是还剩下几个数据的时候结束递归调用(剩下的几个数据使用插入排序算法进行排序)，其实也可以在只剩下1个数据的时候结束递归调用(只剩下一个数据，所以是有序的，无需排序，直接return)
+            for (int i=low; i<high; i++)
+                for (int j=i; j>low &&
+                         ((Comparable) dest[j-1]).compareTo(dest[j])>0; j--)
+                    swap(dest, j, j-1);
+            return;
+        }
+
+        // Recursively sort halves of dest into src
+        int destLow  = low;
+        int destHigh = high;
+        low  += off;
+        high += off;
+        int mid = (low + high) >>> 1;
+        mergeSort(dest, src, low, mid, -off); //2.一直递归调用方法自己
+        mergeSort(dest, src, mid, high, -off);
+
+        //3.归并排序算法
+        // If list is already sorted, just copy from src to dest.  This is an
+        // optimization that results in faster sorts for nearly ordered lists.
+        if (((Comparable)src[mid-1]).compareTo(src[mid]) <= 0) {
+            System.arraycopy(src, low, dest, destLow, length);
+            return;
+        }
+
+        // Merge sorted halves (now in src) into dest
+        for(int i = destLow, p = low, q = mid; i < destHigh; i++) {
+            if (q >= high || p < mid && ((Comparable)src[p]).compareTo(src[q])<=0)
+                dest[i] = src[p++];
+            else
+                dest[i] = src[q++];
+        }
+    }
+```
 
 
-
-源码实现？
-
-
-
-每次插入数据，和集合里的所有数据进行比较。
-
-
-
-哪一种排序算法？
-
-
-
-就是一个一个的比较，循环比较。速度是N。
+2.TreeMap
 
 ```
-//TreeMap
 public V put(K key, V value) {
         Entry<K,V> t = root;
         if (t == null) { //插入第一个元素
