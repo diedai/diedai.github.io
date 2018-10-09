@@ -137,7 +137,7 @@ gitbook
 
 （setting里面设置）
 
-![img](/img/in-post/69942444.png)
+![](/http://pg60ucix6.bkt.clouddn.com/69942444.png)
 
 
 （仓库内容）
