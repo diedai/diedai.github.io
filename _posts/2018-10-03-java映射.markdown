@@ -55,7 +55,7 @@ tags:
 
 （示意图）
 
-![图片来自维基百科.png](https://upload-images.jianshu.io/upload_images/6367548-3d908987eafc5796.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![](http://pg60ucix6.bkt.clouddn.com/6367548-3d908987eafc5796.png)
 
 
 # jdk里的映射之发展史
@@ -68,7 +68,7 @@ jdk5之后。
 
 # Hashtable
 
-![图片来自jdk api文档.png](https://upload-images.jianshu.io/upload_images/6367548-f6c425de4d556ff9.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![](http://pg60ucix6.bkt.clouddn.com/6367548-f6c425de4d556ff9.png)
 
 
 # Hashtable与HashMap的区别？
