@@ -1,7 +1,7 @@
 ---
 layout:     post
-title:      "java树"
-subtitle:   " \"tree\""
+title:      "java二叉树"
+subtitle:   " \"binary tree\""
 date:       2018-10-03 06:00:00
 author:     "青乡"
 header-img: "img/post-bg-2015.jpg"
