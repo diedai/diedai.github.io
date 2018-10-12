@@ -1,0 +1,29 @@
+---
+layout:     post
+title:      "声明变量、创建对象、比较数据、赋值"
+subtitle:   " \"在内存中究竟发生了什么\""
+date:       2018-10-08 06:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - java
+---
+
+# 内存模型
+每一步操作，从内存角度看，发生了什么变化。理解了这个，就理解了jvm的内存。
+
+# 声明变量
+
+# 创建对象
+
+# 赋值
+
+# 比较数据
+## ==
+
+## .equal()
+
+## .toCompare()
+
+## 区别？
