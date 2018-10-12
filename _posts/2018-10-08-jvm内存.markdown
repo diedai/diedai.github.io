@@ -1,7 +1,7 @@
 ---
 layout:     post
-title:      "声明变量、创建对象、比较数据、赋值"
-subtitle:   " \"在内存中究竟发生了什么\""
+title:      "jvm内存"
+subtitle:   " \"声明变量、创建对象、比较数据、赋值，这些操作，在内存中究竟发生了什么\""
 date:       2018-10-08 06:00:00
 author:     "青乡"
 header-img: "img/post-bg-2015.jpg"
