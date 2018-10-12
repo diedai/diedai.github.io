@@ -7,7 +7,7 @@ author:     "青乡"
 header-img: "img/post-bg-2015.jpg"
 catalog: true
 tags:
-    - DataStructure&Algorithm
+    - multi thread
 ---
 
 # 为什么会出现数据不同步的情况？
@@ -55,10 +55,9 @@ Thread.start();
 IO阻塞; //本地数据访问、网络数据访问，都会出现访问数据阻塞，例如，数据量太大，网络不好。
 
 4.再次运行
-s
-睡醒了是
-睡醒了;
 
+睡醒了是允许
+睡醒了
 5.结束/死亡
 代码运行完毕
 
