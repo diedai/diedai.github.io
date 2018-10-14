@@ -1,7 +1,7 @@
 ---
 layout:     post
 title:      "设计模式-生产者和消费者"
-subtitle:   " \"游戏归档\""
+subtitle:   " \"生产者和消费者设计模式\""
 date:       2018-10-11 06:00:00
 author:     "青乡"
 header-img: "img/post-bg-2015.jpg"
