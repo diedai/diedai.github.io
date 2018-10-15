@@ -546,9 +546,26 @@ TreeMap的实现原理也是通过比较，一个数据一个数据的比较。�
 
 使用哈希函数的好处是什么？或者说，封装HashMap的好处是什么？
 
-HashMap键不能重复。
+HashMap键不能重复。所以，HashSet可以确保集合元素不重复。
 
-HashSet可以确保集合元素不重复。
+HashMap为什么可以保证key不重复？看下面的代码。
+```
+//key相同会发生什么？1.相同key只插入一次 2.如果key相同，后面的value会覆盖全面的value
+		Map<String,String> m = new HashMap<String,String>();
+		m.put("a", "1");
+		m.put("b", "2");
+		m.put("a", "2");
+		
+		System.out.println(m); //输出{a=2, b=2}
+```
+
+因为插入数据的时候，会判断，a[key的hash]是否有值，如果没有值，就插入；如果有值，就继续判断是否value相同，value不同覆盖前面的值，值相同就不插入。
+
+```
+//jdk源码
+if ((p = tab[i = (n - 1) & hash]) == null)
+            tab[i] = newNode(hash, key, value, null);
+```
 
 
 
