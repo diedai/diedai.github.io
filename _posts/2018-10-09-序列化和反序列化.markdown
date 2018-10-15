@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:      "jvm内存"
+title:      "序列化和反序列化"
 subtitle:   " \"游戏归档\""
 date:       2018-10-09 06:00:00
 author:     "青乡"
