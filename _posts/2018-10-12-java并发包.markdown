@@ -64,7 +64,11 @@ tags:
 
 2.并发包
 
-只有链表实现ConcurrentLinkedQueue。为什么没有数组实现ConcurrentArrayQueue？
+只有链表实现ConcurrentLinkedQueue。为什么没有数组实现ConcurrentArrayQueue?
+
+
+
+#### 为什么没有数组实现ConcurrentArrayQueue?
 
 
 
