@@ -14,7 +14,12 @@ tags:
 
 # 内存模型
 
-# 内存可见性
+#### 内存可见性
+
+#### 指令重排序
+
+#### 参考
+http://www.infoq.com/cn/minibooks/java_memory_model
 
 
 # 内存
