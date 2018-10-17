@@ -112,3 +112,118 @@ https://docs.oracle.com/javase/tutorial/essential/concurrency/
 
 # 指令重排序
 就是多线程的代码没有先后顺序，完全随机。
+
+# 代码
+```
+package gzh.test.multiThread;
+
+/**
+ * 启动程序
+ * 
+ * ---
+ * 如何才能乱序输出？
+ * 调试的时候，在线程1打断点，就会先执行线程2的任务。
+ * @author gongzhihao
+ *
+ */
+public class MultiThreadTest {
+	static Data d = new Data();
+
+	public static void main(String[] args) {	
+		//初始数据
+		System.out.println("a=" + d.a + ", flag=" + d.flag);
+		System.out.println();
+		
+		//多线程访问数据
+//		for (int i = 0; i < 10; i++) {
+//			Thread t1 = new Thread(new TaskThread1());
+//			t1.start();
+//		}
+		
+		Thread t1 = new Thread(new TaskThread1());
+		t1.start();
+		
+		Thread t2 = new Thread(new TaskThread2());
+		t2.start();
+	}
+
+}
+
+```
+
+```
+package gzh.test.multiThread;
+
+/**
+ * 任务线程
+ * @author gongzhihao
+ *
+ */
+public class TaskThread1 implements Runnable{
+	public void run() {
+		System.out.println("current thread: " + Thread.currentThread() + ", MultiThreadTest.d: " + MultiThreadTest.d);
+		MultiThreadTest.d.writer();
+	}
+
+}
+
+```
+
+```
+package gzh.test.multiThread;
+
+/**
+ * 任务线程
+ * @author gongzhihao
+ *
+ */
+public class TaskThread2 implements Runnable{
+	public void run() {
+		System.out.println("current thread: " + Thread.currentThread() + ", MultiThreadTest.d: " + MultiThreadTest.d);
+		MultiThreadTest.d.reader();
+	}
+
+}
+
+```
+package gzh.test.multiThread;
+
+/**
+ * 数据
+ * @author gongzhihao
+ *
+ */
+class Data {
+	int a = 0;
+	boolean flag = false;
+
+	public synchronized void writer() {
+		a = 1;
+		System.out.println("a=" + a);
+		flag = true;
+		System.out.println("flag=" + flag);
+	}
+
+	public synchronized void reader() {
+		System.out.println("flag=" + flag);
+		if (flag) {
+			System.out.println("flag=" + flag);
+			int i = a;
+			System.out.println("i=" + i);
+		}
+	}
+}
+
+```
+
+```
+输出结果
+a=0, flag=false
+
+current thread: Thread[Thread-0,5,main], MultiThreadTest.d: gzh.test.multiThread.Data@67565b6a
+current thread: Thread[Thread-1,5,main], MultiThreadTest.d: gzh.test.multiThread.Data@67565b6a
+flag=false
+a=1
+flag=true
+
+```
