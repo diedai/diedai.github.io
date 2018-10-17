@@ -7,8 +7,7 @@ author:     "青乡"
 header-img: "img/post-bg-2015.jpg"
 catalog: true
 tags:
-    - DataStructure&Algorithm
-    - multithread
+    - jdk
 ---
 
 
@@ -16,7 +15,7 @@ tags:
 # 载jdk源码
 
 # 调试jdk源码
-1.下载
+1.下载  
 2.IDE里关联一下就可以了
 
 # 在线查看
