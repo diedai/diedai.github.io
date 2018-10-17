@@ -1,0 +1,26 @@
+---
+layout:     post
+title:      "jdk源码"
+subtitle:   " \"jdk源码\""
+date:       2018-10-13 06:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - DataStructure&Algorithm
+    - multithread
+---
+
+
+
+# 载jdk源码
+
+# 调试jdk源码
+1.下载
+2.IDE里关联一下就可以了
+
+# 在线查看
+1.openJDK
+
+2.http://www.docjar.com/docs/api/sun/misc/Unsafe.html
+
