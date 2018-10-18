@@ -1,0 +1,87 @@
+---
+layout:     post
+title:      "spring-事务-传播规则"
+subtitle:   " \"传播规则\""
+date:       2018-10-22 06:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - database
+    - transaction
+    - spring
+    - web
+---
+
+# 是什么
+
+spring-事务-传播规则。
+
+# 作用
+
+事务的粒度可以是方法，当方法里还有调用方法的时候，这个时候应该怎么处理事务呢。传播规则就是为了解决这个问题的。
+
+这里讲的是spring框架的事务的传播规则。
+
+实际上，如果是其他业务框架，也会存在这种问题。
+
+---
+
+比如，现在有2个方法，一个方法是外部方法，一个是内部方法，二者之间是调用关系：
+
+1.方法1 //配置事务-传播规则
+
+方法1使用事务吗？分为2种情况，使用和不使用。
+
+2.方法2 //配置事务-传播规则
+
+方法2使用事务吗？是否使用方法1的事务？
+
+这里每一个问句，都有2种情况。
+
+下面将要介绍的各种情况，就是不同条件的互相组合。
+
+# 总共有7种传播规则
+
+spring里的7种情况，主要是站在方法2的角度，即内部方法的角度来看的，主要包含3种情况：
+
+1.方法2支持事务 required
+
+1）方法1有事务，使用方法1的事务  
+
+2）方法1没有事务，新建事务
+
+2.方法2支持事务 requied_new
+
+不管方法1是否有事务，方法2都新建自己的新的事务。然后，就可以定义自己的隔离级别。
+
+3.方法2支持事务 nest
+
+？
+
+http://skyuck.iteye.com/blog/1833107
+
+http://forum.spring.io/forum/spring-projects/data/7372-propagation-nested-versus-propagation-requires-new //spring作者的回答
+
+总结
+
+默认是第一种，最常见的也是第一种。
+
+# 参考
+
+1.官方文档
+
+https://docs.spring.io/spring/docs/4.3.19.RELEASE/spring-framework-reference/htmlsingle/#tx-propagation
+
+2.书籍
+
+1）方法2是否支持事务
+
+2）方法2是否抛异常
+
+3）方法2是否新建新的事务
+
+![image.png](https://upload-images.jianshu.io/upload_images/6367548-a382d4790cef94bf.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+
+
+3.网络资料
