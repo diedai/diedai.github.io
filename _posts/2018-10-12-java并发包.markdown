@@ -287,6 +287,14 @@ tags:
 
 
 
+# 应用场景
+1.支付系统-订单
+并发链表队列 ConcurrentLinkedQueue
+
+2.订单 //以下可能用到并发map ConcurrentHashMap
+3.通道
+4.订单和通道
+
 
 
 
