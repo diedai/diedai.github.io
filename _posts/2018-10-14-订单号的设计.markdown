@@ -1,7 +1,7 @@
 ---
 layout:     post
-title:      "支付"
-subtitle:   " \"pay\""
+title:      "订单号的设计"
+subtitle:   " \"流水号\""
 date:       2018-10-14 06:00:00
 author:     "青乡"
 header-img: "img/post-bg-2015.jpg"
