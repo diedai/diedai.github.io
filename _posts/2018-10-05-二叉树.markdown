@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:      "java二叉树"
+title:      "二叉树"
 subtitle:   " \"binary tree\""
 date:       2018-10-05 06:00:00
 author:     "青乡"
