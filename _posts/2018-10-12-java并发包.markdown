@@ -372,6 +372,10 @@ public boolean add(E e) {
 https://www.cnblogs.com/chengxiao/p/6881974.html  
 https://juejin.im/post/5aaa2ba8f265da239530b69e
 
+
+应用场景？
+工作中用的比较少。
+
 ---
 映射
 底层实现
