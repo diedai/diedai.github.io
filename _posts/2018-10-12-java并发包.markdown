@@ -302,3 +302,54 @@ tags:
 
 # 原子操作
 
+# 总结
+一、同步集合
+集合
+1.使用显式锁，粒度更细
+
+jdk源码-CopyOnWriteArrayList
+```
+public boolean add(E e) {
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            Object[] elements = getArray();
+            int len = elements.length;
+            Object[] newElements = Arrays.copyOf(elements, len + 1);
+            newElements[len] = e;
+            setArray(newElements);
+            return true;
+        } finally {
+            lock.unlock();
+        }
+    }
+```
+
+为什么更快？
+
+---
+映射
+底层实现
+1.Segment每个都有锁对象
+2.每个版本的jdk实现都有很大的改变
+
+jdk源码-ConcurrentHashMap
+```
+//怎么插入数据？比较和交换CAS
+static final <K,V> boolean casTabAt(Node<K,V>[] tab, int i,
+                                        Node<K,V> c, Node<K,V> v) {
+        return U.compareAndSwapObject(tab, ((long)i << ASHIFT) + ABASE, c, v);
+    }
+```
+
+二、线程池
+
+应用场景
+定时器扫库
+
+
+三、显式锁
+ReentrantLock
+
+作用
+粒度更细
