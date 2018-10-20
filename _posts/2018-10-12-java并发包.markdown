@@ -326,6 +326,8 @@ public boolean add(E e) {
 ```
 
 为什么更快？
+https://www.cnblogs.com/chengxiao/p/6881974.html
+https://juejin.im/post/5aaa2ba8f265da239530b69e
 
 ---
 映射
