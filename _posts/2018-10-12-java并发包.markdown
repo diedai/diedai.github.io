@@ -356,8 +356,13 @@ public boolean add(E e) {
     }
 ```
 
-为什么更快？
-https://www.cnblogs.com/chengxiao/p/6881974.html
+为什么更快？  
+1.读更快，因为读没有同步，可以多个线程同时读数据。  
+2.写使用显示锁进行同步，速度和隐式锁一样。  
+那为什么还要这么弄呢？因为CopyOnWrite的应用场景是读多写少，
+
+
+https://www.cnblogs.com/chengxiao/p/6881974.html  
 https://juejin.im/post/5aaa2ba8f265da239530b69e
 
 ---
