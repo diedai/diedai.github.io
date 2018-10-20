@@ -28,6 +28,37 @@ tags:
 有没有LinkedList？为什么没有？
 
 #### 并发Set
+底层实现
+和并发List一样。
+
+---
+怎么保证数据不重复？
+1.非并发Set，即TreeSet、HashSet，都是使用hash。来确保数据不重复。
+怎么确保？就是插入的时候，key的hash值一样，就不插入了。
+
+2.并发Set没有使用hash，而是遍历比较，值一样，就不插入了。见下面源码。
+```
+public boolean addIfAbsent(E e) {
+        Object[] snapshot = getArray();
+        return indexOf(e, snapshot, 0, snapshot.length) >= 0 ? false :
+            addIfAbsent(e, snapshot); //不存在，才插入数据
+    }
+    
+private static int indexOf(Object o, Object[] elements,
+                               int index, int fence) {
+        if (o == null) {
+            for (int i = index; i < fence; i++)
+                if (elements[i] == null)
+                    return i;
+        } else {
+            for (int i = index; i < fence; i++) //遍历比较数据
+                if (o.equals(elements[i]))
+                    return i;
+        }
+        return -1;
+    }
+```
+
 
 #### 并发Map
 
