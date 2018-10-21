@@ -70,6 +70,8 @@ OutputStreaWriter
 
 # IO的问题
 
+# 随机访问文件？
+
 # 为什么需要NIO
 
 
