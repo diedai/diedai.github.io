@@ -85,8 +85,10 @@ N是非阻塞的缩写。
 # 参考
 https://www.ibm.com/developerworks/cn/java/j-lo-javaio/index.html
 
-官方教程
-https://docs.oracle.com/javase/tutorial/essential/io/index.html
+官方教程  
+https://docs.oracle.com/javase/tutorial/essential/io/index.html  
+https://docs.oracle.com/javase/7/docs/technotes/guides/io/index.html  
+http://openjdk.java.net/projects/nio/
 
 
 # 应用场景
