@@ -70,7 +70,10 @@ OutputStreaWriter
 
 # IO的问题
 
-# 随机访问文件？
+# 随机访问文件
+从文件的任意位置开始写读数据。
+
+https://docs.oracle.com/javase/tutorial/essential/io/rafs.html
 
 # 为什么需要NIO
 
