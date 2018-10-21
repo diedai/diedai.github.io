@@ -37,8 +37,8 @@ Reader
 ---
 文件操作  
 1.流程  
-物理文件——》文件抽象：文件对象File——》File流——》读写操作  
-                      文件描述符FileDescriptor
+物理文件——》文件抽象：文件对象File——》File流(包含文件描述符FileDescriptor)——》读写操作  
+                      
                       
 2.文件描述符FileDescriptor是什么？作用？
 
