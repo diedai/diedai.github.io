@@ -31,6 +31,25 @@ Reader
 2）文件、基于文件的套接字  
 3）对象  
 
+---
+类继承图
+![](http://pg60ucix6.bkt.clouddn.com/image002.png)
+---
+文件操作  
+1.流程  
+物理文件——》文件抽象：文件对象File——》File流——》读写操作  
+                      文件描述符FileDescriptor
+                      
+2.文件描述符FileDescriptor是什么？作用？
+
+                      
+---
+字节和字符互相转换  
+有专门的类，  
+InputStreamReader  
+OutputStreaWriter
+                      
+                      
 
 #### 文件
 
@@ -39,4 +58,9 @@ Reader
 # IO的问题
 
 # 为什么需要NIO
+
+
+# 参考
+https://www.ibm.com/developerworks/cn/java/j-lo-javaio/index.html
+
 
