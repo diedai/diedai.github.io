@@ -74,6 +74,10 @@ OutputStreaWriter
 
 # 为什么需要NIO
 
+# 什么是NIO
+NIO stands for non-blocking I/O.
+N是非阻塞的缩写。
+
 
 # 参考
 https://www.ibm.com/developerworks/cn/java/j-lo-javaio/index.html
