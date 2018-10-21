@@ -71,7 +71,7 @@ OutputStreaWriter
 # IO的问题
 
 # 随机访问文件
-从文件的任意位置开始写读数据。
+从文件的任意位置开始写读数据。其他的都是顺序写读。
 
 https://docs.oracle.com/javase/tutorial/essential/io/rafs.html
 
@@ -84,6 +84,9 @@ N是非阻塞的缩写。
 
 # 参考
 https://www.ibm.com/developerworks/cn/java/j-lo-javaio/index.html
+
+官方教程
+https://docs.oracle.com/javase/tutorial/essential/io/index.html
 
 
 # 应用场景
