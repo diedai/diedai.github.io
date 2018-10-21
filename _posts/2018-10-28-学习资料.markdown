@@ -20,8 +20,13 @@ tags:
 https://www.oracle.com/technetwork/java/javasebusiness/downloads/java-archive-downloads-tutorials-419421.html#tutorial-2008_03_14-oth-JPR
 
 ---
-安全套接字
+安全套接字  
 https://docs.oracle.com/javase/7/docs/technotes/guides/security/jsse/JSSERefGuide.html
+
+---
+对象序列化  
+https://docs.oracle.com/javase/7/docs/platform/serialization/spec/serialTOC.html  
+https://www.oracle.com/technetwork/java/javase/tech/serializationfaq-jsp-136699.html
 
 2.java语言规范
 The Java Language Specification
