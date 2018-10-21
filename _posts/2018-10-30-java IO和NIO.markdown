@@ -59,6 +59,15 @@ OutputStreaWriter
 
 #### 套接字
 
+# 编码和解码
+1.写  
+编码
+
+2.读  
+解码
+
+# 阻塞和非阻塞
+
 # IO的问题
 
 # 为什么需要NIO
@@ -71,3 +80,6 @@ https://www.ibm.com/developerworks/cn/java/j-lo-javaio/index.html
 # 应用场景
 
 # 工作实践
+
+# 开源项目
+web服务器都是使用了NIO，
