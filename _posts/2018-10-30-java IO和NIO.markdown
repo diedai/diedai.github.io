@@ -31,8 +31,6 @@ Reader
 2）网络  
 只能字节。为什么？
 
-  
-类的继承图基本上也是按上面的1234来的。
 ---
 类继承图
 ![](http://pg60ucix6.bkt.clouddn.com/image002.png)
