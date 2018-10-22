@@ -59,6 +59,13 @@ OutputStreaWriter
 
 #### 套接字
 
+# 缓冲区
+1.普通类读写慢。  
+2.使用缓冲区。
+
+缓冲区为什么快？底层原理？
+
+
 # 编码和解码
 1.写  
 编码
@@ -76,14 +83,34 @@ OutputStreaWriter
 https://docs.oracle.com/javase/tutorial/essential/io/rafs.html
 
 # 为什么需要NIO
+包含以下几点，
+1.具体的流  
+文件流  
+绑定TCP套接字
+
+2.通道  
+网络套接字通道  
+本地磁盘文件通道
+
+3.缓冲区  
+ByteBuffer  
+其他各种基本数据类型缓冲区
 
 # 什么是NIO
 NIO stands for non-blocking I/O.
 N是非阻塞的缩写。
 
+# NIO与IO的区别
+1.IO慢，哪怕是缓冲类也慢。  
+基于流。一次读写一个字节。
+
+2.NIO快。为什么？快在哪里？底层原理？  
+基于通道channel。一次读写一个块的数据。
+
 
 # 参考
 https://www.ibm.com/developerworks/cn/java/j-lo-javaio/index.html
+https://www.ibm.com/developerworks/cn/education/java/j-nio/j-nio.html#ma
 
 官方教程  
 https://docs.oracle.com/javase/tutorial/essential/io/index.html  
