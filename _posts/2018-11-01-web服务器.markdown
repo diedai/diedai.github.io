@@ -44,7 +44,7 @@ Servlet 的确已经能够帮我们完成所有的工作了，但是现在的 we
 # 会话Session和Cookie
 Cookie用的比较少，会话Session用的比较多。
 
-####Session
+#### Session
 如何使用？  
 1.获取会话对象  
 2.写数据到会话对象里  
@@ -58,7 +58,7 @@ Cookie用的比较少，会话Session用的比较多。
 
 优缺点？
 
-####Cookie
+#### Cookie
 如何使用？
 
 为什么比较少使用？
