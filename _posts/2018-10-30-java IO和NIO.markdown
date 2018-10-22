@@ -139,6 +139,7 @@ public void selector() throws IOException {
 ```
 
 ```
+//本地磁盘文件
 //三个容易的步骤
 //第一步是获取通道。我们从 FileInputStream 获取通道：
 FileInputStream fin = new FileInputStream( "readandshow.txt" );
