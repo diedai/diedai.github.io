@@ -2,7 +2,7 @@
 layout:     post
 title:      "web服务器"
 subtitle:   " \"tomcat、jetty\""
-date:       2018-11-1 06:00:00
+date:       2018-11-01 06:00:00
 author:     "青乡"
 header-img: "img/post-bg-2015.jpg"
 catalog: true
@@ -10,8 +10,31 @@ tags:
     - web
 ---
 
+# 前言
+1.web服务器的各个主要模块和主要类的一一对应关系。
+
+2.服务器和知识点串起来。
+
+
+# 2个核心点
+servlet  
+servlet容器 //上下文，一个项目一个上下文
+
+
+# 4个核心类
+servlet配置  
+servlet上下文  
+
+请求  
+响应
+
+
+
+
 
 # 服务器与客户端的通信
+与上面的概念一一对应关系？
+
 
 # servlet接受请求和MVC的控制器接受请求
 Servlet 的确已经能够帮我们完成所有的工作了，但是现在的 web 应用很少有直接将交互全部页面都用 servlet 来实现，而是采用更加高效的 MVC 框架来实现。这些 MVC 框架基本的原理都是将所有的请求都映射到一个 Servlet，然后去实现 service 方法，这个方法也就是 MVC 框架的入口。
