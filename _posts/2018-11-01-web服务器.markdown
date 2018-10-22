@@ -69,6 +69,23 @@ Cookie用的比较少，会话Session用的比较多。
 有了 Session ID 服务器端就可以创建 HttpSession 对象了，第一次触发是通过 request. getSession() 方法，如果当前的 Session ID 还没有对应的 HttpSession 对象那么就创建一个新的，并将这个对象加到 org.apache.catalina. Manager 的 sessions 容器中保存，Manager 类将管理所有 Session 的生命周期，Session 过期将被回收，服务器关闭，Session 将被序列化到磁盘等。只要这个 HttpSession 对象存在，用户就可以根据 Session ID 来获取到这个对象，也就达到了状态的保持。
 
 
+# 设计模式
+1.观察者设计模式
+事件监听  
+
+---
+观察者和事件监听的关系？
+
+2.门面设计模式
+请求  
+响应
+
+3.包装器设计模式
+请求  
+响应
+
+处理器Handler
+
 # 参考
 有一本介绍tomcat怎么实现的好书。
 
@@ -76,3 +93,5 @@ Cookie用的比较少，会话Session用的比较多。
 https://www.ibm.com/developerworks/cn/java/j-lo-jetty/  
 https://www.ibm.com/developerworks/cn/java/j-lo-servlet/  
 https://www.ibm.com/developerworks/cn/java/j-lo-tomcat1/index.html  
+
+
