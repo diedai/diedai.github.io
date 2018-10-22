@@ -83,7 +83,7 @@ OutputStreaWriter
 https://docs.oracle.com/javase/tutorial/essential/io/rafs.html
 
 # 为什么需要NIO
-包含以下几点，
+包含以下步骤，  
 1.具体的流  
 文件流  
 绑定TCP套接字
@@ -95,6 +95,8 @@ https://docs.oracle.com/javase/tutorial/essential/io/rafs.html
 3.缓冲区  
 ByteBuffer  
 其他各种基本数据类型缓冲区
+
+4.
 
 # 什么是NIO
 NIO stands for non-blocking I/O.
