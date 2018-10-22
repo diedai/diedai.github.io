@@ -83,6 +83,7 @@ OutputStreaWriter
 https://docs.oracle.com/javase/tutorial/essential/io/rafs.html
 
 # 为什么需要NIO
+如何使用？  
 包含以下步骤，  
 1.具体的流  
 文件流  
@@ -97,6 +98,65 @@ ByteBuffer
 其他各种基本数据类型缓冲区
 
 4.读写到其他地方
+
+代码示例
+```
+//网络套接字
+public void selector() throws IOException {
+        ByteBuffer buffer = ByteBuffer.allocate(1024);
+        Selector selector = Selector.open();
+        ServerSocketChannel ssc = ServerSocketChannel.open();
+        ssc.configureBlocking(false);//设置为非阻塞方式
+        ssc.socket().bind(new InetSocketAddress(8080));
+        ssc.register(selector, SelectionKey.OP_ACCEPT);//注册监听的事件
+        while (true) {
+            Set selectedKeys = selector.selectedKeys();//取得所有key集合
+            Iterator it = selectedKeys.iterator();
+            while (it.hasNext()) {
+                SelectionKey key = (SelectionKey) it.next();
+                if ((key.readyOps() & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT) {
+                    ServerSocketChannel ssChannel = (ServerSocketChannel) key.channel();
+                 SocketChannel sc = ssChannel.accept();//接受到服务端的请求
+                    sc.configureBlocking(false);
+                    sc.register(selector, SelectionKey.OP_READ);
+                    it.remove();
+                } else if 
+                ((key.readyOps() & SelectionKey.OP_READ) == SelectionKey.OP_READ) {
+                    SocketChannel sc = (SocketChannel) key.channel();
+                    while (true) {
+                        buffer.clear();
+                        int n = sc.read(buffer);//读取数据
+                        if (n <= 0) {
+                            break;
+                        }
+                        buffer.flip();
+                    }
+                    it.remove();
+                }
+            }
+        }
+}
+```
+
+```
+//三个容易的步骤
+//第一步是获取通道。我们从 FileInputStream 获取通道：
+FileInputStream fin = new FileInputStream( "readandshow.txt" );
+FileChannel fc = fin.getChannel();
+
+//下一步是创建缓冲区：
+ByteBuffer buffer = ByteBuffer.allocate( 1024 );
+
+//最后，需要将数据从通道读到缓冲区中，如下所示：
+fc.read( buffer );
+```
+
+---
+底层原理和优点  
+基于事件监听。
+
+异步 I/O 的一个优势在于，它允许您同时根据大量的输入和输出执行 I/O。同步程序常常要求助于轮询，或者创建许许多多的线程以处理大量的连接。使用异步 I/O，您可以监听任何数量的通道上的事件，不用轮询，也不用额外的线程。
+
 
 # 什么是NIO
 NIO stands for non-blocking I/O.
