@@ -45,12 +45,25 @@ Servlet 的确已经能够帮我们完成所有的工作了，但是现在的 we
 Cookie用的比较少，会话Session用的比较多。
 
 ####Session
-如何使用？
+如何使用？  
+1.获取会话对象  
+2.写数据到会话对象里  
+3.读会话对象里的数据
+
 
 为什么比较多使用？
 
+底层原理？  
+服务器和客户端通过会话id。
+
+优缺点？
+
 ####Cookie
+如何使用？
+
 为什么比较少使用？
+
+优缺点？
 
 ---
 有了 Session ID 服务器端就可以创建 HttpSession 对象了，第一次触发是通过 request. getSession() 方法，如果当前的 Session ID 还没有对应的 HttpSession 对象那么就创建一个新的，并将这个对象加到 org.apache.catalina. Manager 的 sessions 容器中保存，Manager 类将管理所有 Session 的生命周期，Session 过期将被回收，服务器关闭，Session 将被序列化到磁盘等。只要这个 HttpSession 对象存在，用户就可以根据 Session ID 来获取到这个对象，也就达到了状态的保持。
