@@ -96,7 +96,7 @@ https://docs.oracle.com/javase/tutorial/essential/io/rafs.html
 ByteBuffer  
 其他各种基本数据类型缓冲区
 
-4.
+4.读写到其他地方
 
 # 什么是NIO
 NIO stands for non-blocking I/O.
