@@ -12,12 +12,12 @@ tags:
 
 # IO
 #### IO
-1.按字节和字符
-InputStream
+1.按字节和字符  
+InputStream  
 OutputStream
 
-2.按写和读
-Writer
+2.按写和读  
+Writer  
 Reader
 
 3.按数据类型  
