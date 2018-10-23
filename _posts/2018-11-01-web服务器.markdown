@@ -190,6 +190,8 @@ Cookie用的比较少，会话Session用的比较多？
 #### url mapping rule
 必须以/开头。例如，/路径。
 
+/表示，当前项目根路径，即ip:端口/项目名字/XXX。
+
 具体见servlet api specification。
 
 ```
