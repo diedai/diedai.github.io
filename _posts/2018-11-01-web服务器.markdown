@@ -191,6 +191,7 @@ Cookie用的比较少，会话Session用的比较多？
 
 #### Cookie
 如何使用？
+服务器端的一个Cookie对象，就是客户端的一个Cookie数据。  
 
 为什么比较少使用？
 
