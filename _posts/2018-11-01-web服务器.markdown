@@ -79,18 +79,55 @@ Connector 组件是 Tomcat 中两个核心组件之一，它的主要任务是�
 如何要自己添加其他的数据到Cookie，怎么添加？和会话数据一样，都是通过request读写数据。1.写数据：request.addCookie() 2.读数据：request.getCookie();
 
 
+```
+//测试禁用Cookie
+package test1;
+
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+public class SessionTest extends HttpServlet{
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -7086689145523237424L;
+	
+	/**
+	 * 测试客户端关闭Cookie是否对会话有影响
+	 */
+	public void doPost(HttpServletRequest req, HttpServletResponse resp) {
+		HttpSession session = req.getSession();
+		String v = (String) session.getAttribute("gzh");
+		if (v == null) { //第一次请求，或者不是第一次请求但是禁用了Cookie，会话数据都无法获取，即为null。为什么呢？因为客户端这个时候无法传递请求头Cookie里的会话id给服务器，所以服务器也没有办法识别是哪一个用户发的请求/是否是同一个用户发的请求。
+			session.setAttribute("gzh", "123");
+		} else { //非第一次请求，就有数据
+			System.out.println(v); 
+		}
+	}
+	
+	public void doGet(HttpServletRequest req, HttpServletResponse resp) {
+		doPost(req, resp);
+	}
+
+}
+
+```
+
+
 
 2.客户端
 第一次请求之后，请求头有Cookie 会话id参数。
 
-如果客户端浏览器设置关闭禁用Cookie技术，请求头就不会有Cookie。例如，如果浏览器禁用Cookie技术，淘宝、京东、孔夫子，所有的网站，都无法登陆，因为登陆之后，跳转到首页，发现没有会话id，又重定向到登录页面。工作当中，也是和其他网站一样的处理方法。
+如果客户端浏览器设置关闭禁用Cookie技术，请求头就不会有Cookie。例如，如果浏览器禁用Cookie技术，淘宝、京东、孔夫子，所有的网站，都无法登陆，因为登陆之后，跳转到首页，发现没有会话id，又重定向到登录页面。或者，已经登录之后，然后禁用Cookie，再次点击请求，这时会发现退出到登录页面。工作当中，也是和其他网站一样的处理方法。
 
 也就是说，浏览器必须开启Cookie功能，否则不能正常使用网站。基本上每个网站都是这么处理的。
 
 虽然，servlet api specification里提供了好几种方式，比如url rewriting和重定向，但是真实网站没人这么处理。
 
 重定向，一般只是用于：1.没有登陆，跳转到登录页面 2.错误页面。
-
 ```
 //过滤器
 //作用：没登陆，跳转到登陆页面。
