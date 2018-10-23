@@ -188,11 +188,15 @@ Cookie用的比较少，会话Session用的比较多？
 
 
 # 参考
-有一本介绍tomcat怎么实现的好书。
+1.有一本介绍tomcat怎么实现的好书。
 
 
-https://www.ibm.com/developerworks/cn/java/j-lo-jetty/  
+2.https://www.ibm.com/developerworks/cn/java/j-lo-jetty/  
 https://www.ibm.com/developerworks/cn/java/j-lo-servlet/  
 https://www.ibm.com/developerworks/cn/java/j-lo-tomcat1/index.html  
+
+3.官方文档  
+servlet api specication  
+http://download.oracle.com/otn-pub/jcp/servlet-3.0-fr-eval-oth-JSpec/servlet-3_0-final-spec.pdf?AuthParam=1540281754_1dc207c61d739c0cb9b3f451f150a3e4
 
 
