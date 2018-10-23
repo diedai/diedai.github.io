@@ -186,6 +186,22 @@ Cookie用的比较少，会话Session用的比较多？
 2.主机——引擎——服务器——上下文 //包含   
 3.请求——监听器——过滤器——控制器类 //一层接一层  
 
+# servlet
+#### url mapping rule
+必须以/开头。例如，/路径。
+
+具体见servlet api specification。
+
+```
+<servlet>
+  	<servlet-name>SessionTest</servlet-name>
+  	<servlet-class>test1.SessionTest</servlet-class>
+  </servlet>
+  <servlet-mapping>
+  	<servlet-name>SessionTest</servlet-name>
+  	<url-pattern>/SessionTest</url-pattern> //必须以/开头，否则报错-路径错误。
+  </servlet-mapping>
+```
 
 # 参考
 1.有一本介绍tomcat怎么实现的好书。
