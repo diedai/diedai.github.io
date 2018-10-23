@@ -73,7 +73,10 @@ Connector 组件是 Tomcat 中两个核心组件之一，它的主要任务是�
 
 服务器端处理Cookie技术主要是HttpSession类和Cookie类/request类结合使用。  
 服务器和客户端实现了Cookie功能，所有一旦客户端发出请求之后，服务器Cookie对象里默认就有会话id数据。后面的每次请求，服务器和客户端交换会话id的时候都是隐式的在处理，代码里根本不用管Cookie类和会话id(即jsessionid)。除非程序员自己需要往Cookie里写其他的数据，否则永远都不需要处理Cookie类。
-所以，服务器端的HttpSession和Cookie这2个类包含了会话id，程序员平时只需要访问会话对象里的数据就可以了，怎么读写会话数据？1.获取会话对象(HttpSession session = request.getSession()) 2.写和读数据(session.setAttribute()/getAttribute())。
+所以，服务器端的HttpSession和Cookie这2个类包含了会话id，程序员平时只需要访问会话对象里的数据就可以了，怎么读写会话数据？1.获取会话对象(HttpSession session = request.getSession()) 2.写和读数据(session.setAttribute()/getAttribute())。  
+再说一次，会话id已经由服务器和客户端默默地在背后处理，你读写会话对象里的数据的时候，就是当前会话id用户的会话对象。
+
+如何要自己添加其他的数据到Cookie，怎么添加？和会话数据一样，都是通过request读写数据。1.写数据：request.addCookie() 2.读数据：request.getCookie();
 
 
 
