@@ -87,8 +87,60 @@ Connector 组件是 Tomcat 中两个核心组件之一，它的主要任务是�
 
 淘宝、京东、孔夫子，所有的网站，都无法登陆，因为登陆之后，跳转到首页，发现没有会话id，又重定向到登录页面。
 
+工作当中，也是和其他网站一样的处理方法。
+
+也就是说，浏览器必须开启Cookie功能，否则不能正常使用网站。基本上每个网站都是这么处理的。
+
+虽然，servlet api specification里提供了好几种方式，比如url rewriting和重定向，但是真实网站没人这么处理。
+
+重定向，一般只是用于：1.没有登陆，跳转到登录页面 2.错误页面。
+
+```
+//过滤器
+//作用：没登陆，跳转到登陆页面。
+public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse,
+			FilterChain filterChain) throws IOException, ServletException {
+		HttpServletRequest request = (HttpServletRequest) servletRequest;
+		HttpServletResponse response = (HttpServletResponse) servletResponse;
+		HttpSession session = request.getSession();
+		String uri = request.getRequestURI();
+		String contextPath = request.getContextPath();
+		
+		if (!isIgnoreURL(uri, contextPath + java.io.File.pathSeparator)) {		
+			if(session.getAttribute("user")==null || uri.indexOf(isLogin)==-1){   
+	        	response.sendRedirect(contextPath + loginURL);
+	        }
+		}
+		filterChain.doFilter(request, response);
+	}
+```
+
+```
+//控制器
+//作用：跳转到错误页面
+if(StringUtils.isBlank(exportExcelDate)){
+			log.error("。。。");
+			try {
+				response.sendRedirect(errorPath);
+				return;
+			} catch (IOException e1) {
+				return;
+			}
+		}
+```
+
+
+---
+url rewriting?  
+就是在url后面添加url;jsessionid=XXX。这种方法必须要服务器同时实现重定向方式的会话跟踪技术，否则肯定是没有办法进行会话跟踪的，因为服务器和客户端必须要维持一个类似会话id的东西。否则，服务器永远都没有办法知道多个请求是否来自同一个用户。
+
+
+
+
+
 ---
 Cookie用的比较少，会话Session用的比较多？
+因为有关Cookie的一切，都由服务器和客户端在背后默默地处理掉了，不需要程序员来关心这个问题。
 
 #### Session
 如何使用？  
