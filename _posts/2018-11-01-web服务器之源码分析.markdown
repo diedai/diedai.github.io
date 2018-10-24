@@ -1,0 +1,57 @@
+---
+layout:     post
+title:      "web服务器之源码分析"
+subtitle:   " \"tomcat、jetty\""
+date:       2018-11-01 07:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - web
+---
+
+# 前言
+为什么要看源码？  
+因为服务器是每天开发工作都要接触到的东西。其重要性比各种开源框架还要重要。
+
+因为所有的开源框架都是在服务器里跑的。
+
+上面的只是各种完成不同功能的组件而已。
+
+---
+目标  
+梳理清楚，每个容器的入口在哪里？每个容器在整个流程里的哪一步？具体是源码的哪一块？
+
+
+只有深入到源码才有效果。
+
+---
+从以下几个方面来梳理  
+1.大的流程
+
+2.容器
+
+3.Tomcat与servlet的一一对应关系
+从4个重要的类来讲
+
+# 大的流程
+
+
+# 容器
+
+
+# Tomcat与servlet的一一对应关系
+从4个重要的类来讲。
+
+1.servlet类：Servlet/GenericServlet/HttpServlet  
+业务类本身。
+
+2.servlet的业务方法  
+doGet/doPost/service。
+
+3.ServletConfig  
+servlet的init(ServletConfig)。
+
+4.ServletContext  
+ServletConfig.getServletContext。
+
