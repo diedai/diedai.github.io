@@ -35,7 +35,22 @@ tags:
 从4个重要的类来讲
 
 # 大的流程
+1.启动类Catalina    
+启动应用程序。
 
+---
+
+
+2.连接器Connector  
+接受请求，每个请求来了之后，新建一个独立的线程。
+
+3.处理器Processor    
+1）解析客户端套接字请求，得到请求(输入流)和响应(输出流)；  
+2）根据输入流里的请求路径，得到servlet类，创建servlet，调用servlet类的.doGet/doPost/service方法。//传递的参数就是请求和响应的门面类，因为门面类实现了HttpServletRequest/Response。
+
+4.业务类HttpServlet  
+处理业务功能；
+输出数据到客户端。
 
 # 容器
 
