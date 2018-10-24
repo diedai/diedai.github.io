@@ -24,7 +24,8 @@ tags:
 接受请求，每个请求来了之后，新建一个独立的线程。
 
 3.处理器Processor    
-解析客户端套接字请求，得到请求(输入流)和响应(输出流)。
+1）解析客户端套接字请求，得到请求(输入流)和响应(输出流)；  
+2）根据输入流里的请求路径，得到servlet类，创建servlet，调用servlet类的.doGet/doPost/service方法。//传递的参数就是请求和响应的门面类，因为门面类实现了HttpServletRequest/Response。
 
 4.业务类HttpServlet  
 处理业务功能；
@@ -34,11 +35,11 @@ tags:
 具体代码可以参考《tomcat一书》，源码可以参考tomcat的源码。
 
 
+---
+容器
+就是上面流程的3步骤。即就是处理器的功能。
 
-# 2个核心点
-servlet  
-servlet容器 //上下文，一个项目一个上下文
-
+说具体点，容器就是servlet容器，专门用于创建servlet对象和调用servlet的业务方法。容器就是干这个的。
 
 # 4个核心类
 servlet配置  
