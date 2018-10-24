@@ -55,3 +55,16 @@ servlet的init(ServletConfig)。
 4.ServletContext  
 ServletConfig.getServletContext。
 
+以上是servlet规范里的接口。
+
+---
+在tomcat里是什么样的？  
+首先搞明白，servlet的一个规范，定义了web服务器的接口，真正的web服务器实现比如tomcat，它就实现了servlet规范里的各个接口，和接口里的所有功能。所以，在tomcat源码里肯定是可以找到以上接口的实现类的。理清楚了这些实现类，以及它们的关系和实现流程，就基本上搞懂了源码了。
+
+
+1.servlet类
+2.
+3.
+4.
+
+
