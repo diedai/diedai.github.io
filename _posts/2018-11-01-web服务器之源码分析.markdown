@@ -37,16 +37,182 @@ tags:
 # 大的流程
 1.启动类Catalina    
 启动应用程序。
+启动脚本——》启动类。
 
 ---
+源码  
+```
+//Catalina
+/**
+     * Start a new server instance.
+     */
+    public void start() {
 
+        if (getServer() == null) {
+            load();
+        }
+
+        if (getServer() == null) {
+            log.fatal("Cannot start server. Server instance is not configured.");
+            return;
+        }
+
+        long t1 = System.nanoTime();
+
+        // Start the new server
+        try {
+            getServer().start(); //启动服务器
+        } catch (LifecycleException e) {
+            log.fatal(sm.getString("catalina.serverStartFail"), e);
+            try {
+                getServer().destroy();
+            } catch (LifecycleException e1) {
+                log.debug("destroy() failed for failed Server ", e1);
+            }
+            return;
+        }
+
+        long t2 = System.nanoTime();
+        if(log.isInfoEnabled()) {
+            log.info("Server startup in " + ((t2 - t1) / 1000000) + " ms");
+        }
+
+        // Register shutdown hook
+        if (useShutdownHook) {
+            if (shutdownHook == null) {
+                shutdownHook = new CatalinaShutdownHook();
+            }
+            Runtime.getRuntime().addShutdownHook(shutdownHook);
+
+            // If JULI is being used, disable JULI's shutdown hook since
+            // shutdown hooks run in parallel and log messages may be lost
+            // if JULI's hook completes before the CatalinaShutdownHook()
+            LogManager logManager = LogManager.getLogManager();
+            if (logManager instanceof ClassLoaderLogManager) {
+                ((ClassLoaderLogManager) logManager).setUseShutdownHook(
+                        false);
+            }
+        }
+
+        if (await) {
+            await();
+            stop();
+        }
+    }
+```
 
 2.连接器Connector  
 接受请求，每个请求来了之后，新建一个独立的线程。
 
+```
+//Connector
+/**
+     * Begin processing requests via this Connector.
+     *
+     * @exception LifecycleException if a fatal startup error occurs
+     */
+    @Override
+    protected void startInternal() throws LifecycleException {
+
+        // Validate settings before starting
+        if (getPort() < 0) {
+            throw new LifecycleException(sm.getString(
+                    "coyoteConnector.invalidPort", Integer.valueOf(getPort())));
+        }
+
+        setState(LifecycleState.STARTING);
+
+        try {
+            protocolHandler.start();
+        } catch (Exception e) {
+            String errPrefix = "";
+            if(this.service != null) {
+                errPrefix += "service.getName(): \"" + this.service.getName() + "\"; ";
+            }
+
+            throw new LifecycleException
+            (errPrefix + " " + sm.getString
+                    ("coyoteConnector.protocolHandlerStartFailed"), e);
+        }
+
+        mapperListener.start();
+    }
+```
+
 3.处理器Processor    
 1）解析客户端套接字请求，得到请求(输入流)和响应(输出流)；  
 2）根据输入流里的请求路径，得到servlet类，创建servlet，调用servlet类的.doGet/doPost/service方法。//传递的参数就是请求和响应的门面类，因为门面类实现了HttpServletRequest/Response。
+
+```
+//请求处理器AbstractProtocol
+public abstract class AbstractProtocol<S> implements ProtocolHandler,
+        MBeanRegistration {
+        
+@Override
+    public void start() throws Exception {
+        if (getLog().isInfoEnabled())
+            getLog().info(sm.getString("abstractProtocolHandler.start",
+                    getName()));
+        try {
+            endpoint.start();//调用NioEndpoint
+        } catch (Exception ex) {
+            getLog().error(sm.getString("abstractProtocolHandler.startError",
+                    getName()), ex);
+            throw ex;
+        }
+    }
+```
+
+```
+//NioEndpoint
+public class NioEndpoint extends AbstractEndpoint<NioChannel> {
+
+/**
+     * Start the NIO endpoint, creating acceptor, poller threads.
+     */
+    @Override
+    public void startInternal() throws Exception {
+
+        if (!running) {
+            running = true;
+            paused = false;
+
+            // Create worker collection
+            if ( getExecutor() == null ) {
+                createExecutor();
+            }
+
+            initializeConnectionLatch();
+
+            // Start poller threads
+            pollers = new Poller[getPollerThreadCount()];
+            for (int i=0; i<pollers.length; i++) {
+                pollers[i] = new Poller();
+                Thread pollerThread = new Thread(pollers[i], getName() + "-ClientPoller-"+i);
+                pollerThread.setPriority(threadPriority);
+                pollerThread.setDaemon(true);
+                pollerThread.start();
+            }
+
+            startAcceptorThreads();
+        }
+    }
+    
+    protected final void startAcceptorThreads() {
+        int count = getAcceptorThreadCount();
+        acceptors = new Acceptor[count];
+
+        for (int i = 0; i < count; i++) {
+            acceptors[i] = createAcceptor();
+            String threadName = getName() + "-Acceptor-" + i;
+            acceptors[i].setThreadName(threadName);
+            Thread t = new Thread(acceptors[i], threadName);
+            t.setPriority(getAcceptorThreadPriority());
+            t.setDaemon(getDaemon());
+            t.start();
+        }
+    }
+```
 
 4.业务类HttpServlet  
 处理业务功能；
