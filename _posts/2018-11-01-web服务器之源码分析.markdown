@@ -811,7 +811,7 @@ public interface Server extends Lifecycle { //继承了生命周期接口，管�
 ```
 
 ```
-//ApplicationFilterChain
+//ApplicationFilterChain，tomcat过滤器链类实现了servlet规范里的接口FilterChain。自定义过滤器类则实现了Filter接口。
 
 /**
  * Implementation of <code>javax.servlet.FilterChain</code> used to manage
