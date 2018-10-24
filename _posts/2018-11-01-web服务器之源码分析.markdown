@@ -539,6 +539,11 @@ public class ApplicationContext implements ServletContext { //实现了servlet�
 
 ```
 
+# Server
+配置文件web.xml  
+Server元素是根元素。代表整台服务器。  
+在tomcat里
+
 # 说明
 tomcat源码是7。
 
