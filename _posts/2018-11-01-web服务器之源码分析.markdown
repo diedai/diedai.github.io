@@ -63,11 +63,11 @@ ServletConfig.getServletContext。
 
 
 1.servlet类
-怎么使用？
+怎么使用？  
 程序员自定义，一般继承HttpServlet就可以了，然后覆盖doGet/doPost业务方法完成自己的业务功能。
 
 ---
-底层原理？
+底层原理？  
 在tomcat里，服务器——引擎——主机——上下文——Servlet，这4个都是容器，所谓容器就是servlet容器的意思，顾名思义，作用就是管理Servlet类。
 
 一个简单的servlet规范的实现，即容器的实现，可以不需要那么多的层级，最简单的只需要一层就可以了，比如，如果一个Web服务器只有一个Servlet类，只需要完成一个功能，那么此时web服务器/web容器就是Servlet(在tomcat里，Servlet容器对应的类是Wrapper/StandardWrapper，其他的容器也是容器接口/容器实现类)。
@@ -86,12 +86,12 @@ public class StandardWrapper extends ContainerBase //所有容器都继承了Con
 一般就是增删查改。
 
 3.ServletConfig
-如何使用？
-ServletConfig出现在Servlet类.init()方法的参数里。
+如何使用？  
+ServletConfig出现在Servlet类.init()方法的参数里。  
 如果在web.xml对servlet类进行了什么配置，这个时候就可以在init方法里通过ServletConfig接口读写相关数据。
 
 ---
-底层实现和底层原理？
+底层实现和底层原理？  
 具体流程和步骤，见源码注释。
 
 ```
@@ -280,6 +280,83 @@ public final class StandardWrapperFacade
 
 
 4.ServletContext
+是什么？  
+就是指当前项目。一个项目包含了多个servlet类。
+
+---
+如何使用？  
+ServletConfig.getServletContext()。
+
+---
+底层原理和实现(即tomcat里的实现类)？
+
+```
+//ServletConfigFacade
+@Override
+    public ServletContext getServletContext() {
+        if (context == null) {
+            context = config.getServletContext();
+            if ((context != null) && (context instanceof ApplicationContext))
+                context = ((ApplicationContext) context).getFacade();
+        }
+        return (context);
+    }
+```
+
+```
+//StantdardWrapper
+**
+     * Return the servlet context with which this servlet is associated.
+     */
+    @Override
+    public ServletContext getServletContext() {
+
+        if (parent == null)
+            return (null);
+        else if (!(parent instanceof Context))
+            return (null);
+        else
+            return (((Context) parent).getServletContext());
+
+    }
+    
+        /**
+     * The parent Container to which this Container is a child.
+     */
+    protected Container parent = null; //Servlet父容器，父容器就是上下文容器。
+```
+
+```
+//StandardContext
+ /**
+     * Return the servlet context for which this Context is a facade.
+     */
+    @Override
+    public ServletContext getServletContext() {
+
+        if (context == null) {
+            context = new ApplicationContext(this); //最终的实现类就是ApplicationContext
+            if (altDDName != null)
+                context.setAttribute(Globals.ALT_DD_ATTR,altDDName);
+        }
+        return (context.getFacade());
+
+    }
+```
+
+```
+//ApplicationContext
+/**
+ * Standard implementation of <code>ServletContext</code> that represents
+ * a web application's execution environment.  An instance of this class is
+ * associated with each instance of <code>StandardContext</code>.
+ *
+ * @author Craig R. McClanahan
+ * @author Remy Maucherat
+ */
+public class ApplicationContext implements ServletContext { //实现了servlet规范里的接口ServletContext
+
+```
 
 # 说明
 tomcat源码是7。
