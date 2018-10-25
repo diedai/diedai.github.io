@@ -88,7 +88,9 @@ JDK提供了以上2个类，专门用于事件监听功能。自己实现事件�
 web程序的也是事件监听。
 
 2.servlet  
-提供了ServletContextListenr接口。专门用于事件监听的功能。
+提供了ServletContextListenr接口。专门用于事件监听的功能。  
+
+自定义监听器，就实现ServletContextListenr。
 
 3.tomcat  
 服务器容器：监听服务器的各种数据的变化。
