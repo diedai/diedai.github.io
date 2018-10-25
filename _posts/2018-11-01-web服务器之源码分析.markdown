@@ -561,6 +561,380 @@ public interface Server extends Lifecycle { //继承了生命周期接口，管�
 ```
 
 # 监听器Listener
+在哪里添加监听器？  
+```
+//WebXml
+/**
+     * Configure a {@link Context} using the stored web.xml representation.
+     *
+     * @param context   The context to be configured
+     */
+    public void configureContext(Context context) {
+        // As far as possible, process in alphabetical order so it is easy to
+        // check everything is present
+        // Some validation depends on correct public ID
+        context.setPublicId(publicId);
+
+        // Everything else in order
+        context.setEffectiveMajorVersion(getMajorVersion());
+        context.setEffectiveMinorVersion(getMinorVersion());
+
+        for (Entry<String, String> entry : contextParams.entrySet()) {
+            context.addParameter(entry.getKey(), entry.getValue());
+        }
+        context.setDisplayName(displayName);
+        context.setDistributable(distributable);
+        for (ContextLocalEjb ejbLocalRef : ejbLocalRefs.values()) {
+            context.getNamingResources().addLocalEjb(ejbLocalRef);
+        }
+        for (ContextEjb ejbRef : ejbRefs.values()) {
+            context.getNamingResources().addEjb(ejbRef);
+        }
+        for (ContextEnvironment environment : envEntries.values()) {
+            context.getNamingResources().addEnvironment(environment);
+        }
+        for (ErrorPage errorPage : errorPages.values()) {
+            context.addErrorPage(errorPage);
+        }
+        for (FilterDef filter : filters.values()) {
+            if (filter.getAsyncSupported() == null) {
+                filter.setAsyncSupported("false");
+            }
+            context.addFilterDef(filter);
+        }
+        for (FilterMap filterMap : filterMaps) {
+            context.addFilterMap(filterMap);
+        }
+        for (JspPropertyGroup jspPropertyGroup : jspPropertyGroups) {
+            JspPropertyGroupDescriptor descriptor =
+                new ApplicationJspPropertyGroupDescriptor(jspPropertyGroup);
+            context.getJspConfigDescriptor().getJspPropertyGroups().add(
+                    descriptor);
+        }
+        for (String listener : listeners) { //服务器启动的时候，解析web.xml，得到配置的所有的监听器
+            context.addApplicationListener(listener);
+        }
+        for (Entry<String, String> entry : localeEncodingMappings.entrySet()) {
+            context.addLocaleEncodingMappingParameter(entry.getKey(),
+                    entry.getValue());
+        }
+        // Prevents IAE
+        if (loginConfig != null) {
+            context.setLoginConfig(loginConfig);
+        }
+        for (MessageDestinationRef mdr : messageDestinationRefs.values()) {
+            context.getNamingResources().addMessageDestinationRef(mdr);
+        }
+
+        // messageDestinations were ignored in Tomcat 6, so ignore here
+
+        context.setIgnoreAnnotations(metadataComplete);
+        for (Entry<String, String> entry : mimeMappings.entrySet()) {
+            context.addMimeMapping(entry.getKey(), entry.getValue());
+        }
+        // Name is just used for ordering
+        for (ContextResourceEnvRef resource : resourceEnvRefs.values()) {
+            context.getNamingResources().addResourceEnvRef(resource);
+        }
+        for (ContextResource resource : resourceRefs.values()) {
+            context.getNamingResources().addResource(resource);
+        }
+        for (SecurityConstraint constraint : securityConstraints) {
+            context.addConstraint(constraint);
+        }
+        for (String role : securityRoles) {
+            context.addSecurityRole(role);
+        }
+        for (ContextService service : serviceRefs.values()) {
+            context.getNamingResources().addService(service);
+        }
+        for (ServletDef servlet : servlets.values()) {
+            Wrapper wrapper = context.createWrapper();
+            // Description is ignored
+            // Display name is ignored
+            // Icons are ignored
+
+            // jsp-file gets passed to the JSP Servlet as an init-param
+
+            if (servlet.getLoadOnStartup() != null) {
+                wrapper.setLoadOnStartup(servlet.getLoadOnStartup().intValue());
+            }
+            if (servlet.getEnabled() != null) {
+                wrapper.setEnabled(servlet.getEnabled().booleanValue());
+            }
+            wrapper.setName(servlet.getServletName());
+            Map<String,String> params = servlet.getParameterMap();
+            for (Entry<String, String> entry : params.entrySet()) {
+                wrapper.addInitParameter(entry.getKey(), entry.getValue());
+            }
+            wrapper.setRunAs(servlet.getRunAs());
+            Set<SecurityRoleRef> roleRefs = servlet.getSecurityRoleRefs();
+            for (SecurityRoleRef roleRef : roleRefs) {
+                wrapper.addSecurityReference(
+                        roleRef.getName(), roleRef.getLink());
+            }
+            wrapper.setServletClass(servlet.getServletClass());
+            MultipartDef multipartdef = servlet.getMultipartDef();
+            if (multipartdef != null) {
+                if (multipartdef.getMaxFileSize() != null &&
+                        multipartdef.getMaxRequestSize()!= null &&
+                        multipartdef.getFileSizeThreshold() != null) {
+                    wrapper.setMultipartConfigElement(new MultipartConfigElement(
+                            multipartdef.getLocation(),
+                            Long.parseLong(multipartdef.getMaxFileSize()),
+                            Long.parseLong(multipartdef.getMaxRequestSize()),
+                            Integer.parseInt(
+                                    multipartdef.getFileSizeThreshold())));
+                } else {
+                    wrapper.setMultipartConfigElement(new MultipartConfigElement(
+                            multipartdef.getLocation()));
+                }
+            }
+            if (servlet.getAsyncSupported() != null) {
+                wrapper.setAsyncSupported(
+                        servlet.getAsyncSupported().booleanValue());
+            }
+            wrapper.setOverridable(servlet.isOverridable());
+            context.addChild(wrapper);
+        }
+        for (Entry<String, String> entry : servletMappings.entrySet()) {
+            context.addServletMapping(entry.getKey(), entry.getValue());
+        }
+        if (sessionConfig != null) {
+            if (sessionConfig.getSessionTimeout() != null) {
+                context.setSessionTimeout(
+                        sessionConfig.getSessionTimeout().intValue());
+            }
+            SessionCookieConfig scc =
+                context.getServletContext().getSessionCookieConfig();
+            scc.setName(sessionConfig.getCookieName());
+            scc.setDomain(sessionConfig.getCookieDomain());
+            scc.setPath(sessionConfig.getCookiePath());
+            scc.setComment(sessionConfig.getCookieComment());
+            if (sessionConfig.getCookieHttpOnly() != null) {
+                scc.setHttpOnly(sessionConfig.getCookieHttpOnly().booleanValue());
+            }
+            if (sessionConfig.getCookieSecure() != null) {
+                scc.setSecure(sessionConfig.getCookieSecure().booleanValue());
+            }
+            if (sessionConfig.getCookieMaxAge() != null) {
+                scc.setMaxAge(sessionConfig.getCookieMaxAge().intValue());
+            }
+            if (sessionConfig.getSessionTrackingModes().size() > 0) {
+                context.getServletContext().setSessionTrackingModes(
+                        sessionConfig.getSessionTrackingModes());
+            }
+        }
+        for (Entry<String, String> entry : taglibs.entrySet()) {
+            TaglibDescriptor descriptor = new ApplicationTaglibDescriptor(
+                    entry.getValue(), entry.getKey());
+            context.getJspConfigDescriptor().getTaglibs().add(descriptor);
+        }
+
+        // Context doesn't use version directly
+
+        for (String welcomeFile : welcomeFiles) {
+            /*
+             * The following will result in a welcome file of "" so don't add
+             * that to the context
+             * <welcome-file-list>
+             *   <welcome-file/>
+             * </welcome-file-list>
+             */
+            if (welcomeFile != null && welcomeFile.length() > 0) {
+                context.addWelcomeFile(welcomeFile);
+            }
+        }
+
+        // Do this last as it depends on servlets
+        for (JspPropertyGroup jspPropertyGroup : jspPropertyGroups) {
+            String jspServletName = context.findServletMapping("*.jsp");
+            if (jspServletName == null) {
+                jspServletName = "jsp";
+            }
+            if (context.findChild(jspServletName) != null) {
+                for (String urlPattern : jspPropertyGroup.getUrlPatterns()) {
+                    context.addServletMapping(urlPattern, jspServletName, true);
+                }
+            } else {
+                if(log.isDebugEnabled()) {
+                    for (String urlPattern : jspPropertyGroup.getUrlPatterns()) {
+                        log.debug("Skiping " + urlPattern + " , no servlet " +
+                                jspServletName);
+                    }
+                }
+            }
+        }
+
+        for (Entry<String, String> entry : postConstructMethods.entrySet()) {
+            context.addPostConstructMethod(entry.getKey(), entry.getValue());
+        }
+
+        for (Entry<String, String> entry : preDestroyMethods.entrySet()) {
+            context.addPreDestroyMethod(entry.getKey(), entry.getValue());
+        }
+    }
+```
+
+---
+在哪里调用监听器的初始化方法？  
+```
+//StandardContext
+/**
+     * Configure the set of instantiated application event listeners
+     * for this Context.  Return <code>true</code> if all listeners wre
+     * initialized successfully, or <code>false</code> otherwise.
+     */
+    public boolean listenerStart() {
+
+        if (log.isDebugEnabled())
+            log.debug("Configuring application event listeners");
+
+        // Instantiate the required listeners
+        ApplicationListener listeners[] = applicationListeners;
+        Object results[] = new Object[listeners.length];
+        boolean ok = true;
+        for (int i = 0; i < results.length; i++) {
+            if (getLogger().isDebugEnabled())
+                getLogger().debug(" Configuring event listener class '" +
+                    listeners[i] + "'");
+            try {
+                ApplicationListener listener = listeners[i];
+                results[i] = getInstanceManager().newInstance(
+                        listener.getClassName());
+                if (listener.isPluggabilityBlocked()) {
+                    noPluggabilityListeners.add(results[i]);
+                }
+            } catch (Throwable t) {
+                t = ExceptionUtils.unwrapInvocationTargetException(t);
+                ExceptionUtils.handleThrowable(t);
+                getLogger().error
+                    (sm.getString("standardContext.applicationListener",
+                                  listeners[i].getClassName()), t);
+                ok = false;
+            }
+        }
+        if (!ok) {
+            getLogger().error(sm.getString("standardContext.applicationSkipped"));
+            return (false);
+        }
+
+        // Sort listeners in two arrays
+        ArrayList<Object> eventListeners = new ArrayList<Object>();
+        ArrayList<Object> lifecycleListeners = new ArrayList<Object>();
+        for (int i = 0; i < results.length; i++) {
+            if ((results[i] instanceof ServletContextAttributeListener)
+                || (results[i] instanceof ServletRequestAttributeListener)
+                || (results[i] instanceof ServletRequestListener)
+                || (results[i] instanceof HttpSessionAttributeListener)) {
+                eventListeners.add(results[i]);
+            }
+            if ((results[i] instanceof ServletContextListener)
+                || (results[i] instanceof HttpSessionListener)) {
+                lifecycleListeners.add(results[i]);
+            }
+        }
+
+        // Listener instances may have been added directly to this Context by
+        // ServletContextInitializers and other code via the pluggability APIs.
+        // Put them these listeners after the ones defined in web.xml and/or
+        // annotations then overwrite the list of instances with the new, full
+        // list.
+        for (Object eventListener: getApplicationEventListeners()) {
+            eventListeners.add(eventListener);
+        }
+        setApplicationEventListeners(eventListeners.toArray());
+        for (Object lifecycleListener: getApplicationLifecycleListeners()) {
+            lifecycleListeners.add(lifecycleListener);
+            if (lifecycleListener instanceof ServletContextListener) {
+                noPluggabilityListeners.add(lifecycleListener);
+            }
+        }
+        setApplicationLifecycleListeners(lifecycleListeners.toArray());
+
+        // Send application start events
+
+        if (getLogger().isDebugEnabled())
+            getLogger().debug("Sending application start events");
+
+        // Ensure context is not null
+        getServletContext();
+        context.setNewServletContextListenerAllowed(false);
+
+        Object instances[] = getApplicationLifecycleListeners();
+        if (instances == null || instances.length == 0) {
+            return ok;
+        }
+
+        ServletContextEvent event = new ServletContextEvent(getServletContext());
+        ServletContextEvent tldEvent = null;
+        if (noPluggabilityListeners.size() > 0) {
+            noPluggabilityServletContext = new NoPluggabilityServletContext(getServletContext());
+            tldEvent = new ServletContextEvent(noPluggabilityServletContext);
+        }
+        for (int i = 0; i < instances.length; i++) {
+            if (instances[i] == null)
+                continue;
+            if (!(instances[i] instanceof ServletContextListener))
+                continue;
+            ServletContextListener listener =
+                (ServletContextListener) instances[i];
+            try {
+                fireContainerEvent("beforeContextInitialized", listener);
+                if (noPluggabilityListeners.contains(listener)) {
+                    listener.contextInitialized(tldEvent); 
+                } else {
+                    listener.contextInitialized(event); //服务器启动的时候，在这里调用监听器。而且是循环调用监听器链，即一个一个的调用。
+                }
+                fireContainerEvent("afterContextInitialized", listener);
+            } catch (Throwable t) {
+                ExceptionUtils.handleThrowable(t);
+                fireContainerEvent("afterContextInitialized", listener);
+                getLogger().error
+                    (sm.getString("standardContext.listenerStart",
+                                  instances[i].getClass().getName()), t);
+                ok = false;
+            }
+        }
+        return (ok);
+
+    }
+```
+
+---
+例子  
+servlet规范提供了2个接口/类，继承了jdk的2个接口/类:  
+1.ServletContextEvent  extends EventObject  
+自定义监听器时，一般不需要自定义事件对象。所以这一块是不用管的。使用默认的即可。
+
+2.ServletContextListener implements EventListener  
+自定义监听器需要实现servlet规范里的接口，并且实现init方法和destroy方法，做一些系统范围的初始化操作。
+
+```
+public class ApplicationContextListener extends ContextLoaderListener implements ServletContextListener{
+	private static Log log = LogFactory.getLog(ApplicationContextListener.class);
+
+	/**
+	 * web容器初始化时，加载配置文件工具类(获取spring同一上下文)
+	 */
+	@Override
+	public void contextInitialized(ServletContextEvent event) {
+		try{
+			log.info("applicationContextListener.contextInitialized begin");
+			ServletContext application = event.getServletContext();
+			ApplicationContext context = WebApplicationContextUtils.getWebApplicationContext(application);
+			if (context != null) {
+				ApplicationContextUtil.setApplicationContext(context);
+				ApplicationContextUtil.setInitialized(true);
+			}
+			log.info("applicationContextListener.contextInitialized end");
+		}catch (Exception e) {
+			log.error("applicationContextListener.contextInitialized错误: ", e);
+		}
+	}
+}
+```
+
 
 # 过滤器Filter
 在servlet容器里(即StandardWrapperValve)调用过滤器链。
