@@ -98,5 +98,11 @@ map数据结构。
 
 Queries on slow machines should run in well under 1ms. High end servers can serve millions of keys per second in throughput.
 
+# 跑起来玩一下
+
+# 源码分析
+
+# 底层原理和实现
+
 # 参考
 https://github.com/memcached/memcached/wiki
