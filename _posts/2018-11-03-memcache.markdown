@@ -60,6 +60,10 @@ c语言写的。
 web，  
 jar包 //java
 
+---
+java-最常用的开源jar包是XMemCached  
+
+
 # 应用场景
 
 # 数据类型
@@ -99,10 +103,44 @@ map数据结构。
 Queries on slow machines should run in well under 1ms. High end servers can serve millions of keys per second in throughput.
 
 # 跑起来玩一下
+1.生产环境  
+安装在多台服务器  
+
+2.测试环境
+安装在同一台服务器，使用不同的端口即可。
+
+# 工作实践
+1.用户量小的系统  
+用户量  
+几十万个用户。
+
+---
+节点数量  
+服务   
+中间件 //多台服务器，集群/分布式。节点数量是个位数。
+
+数据库 //分库，但是每个分库只有一个节点，没有集群。只有数据备份。
+
+内存 //平均每个服务占几G，几十个服务，加起来几百G。
+
+2.用户量大的系统-核心支付系统  
+用户量  
+几十万个商家。  
+数百万数千万的用户。
+
+---
+节点数量  
+服务   
+中间件 //多台服务器，集群/分布式。节点数量是十位数。
+
+数据库 //分库，并且每个分库集群。同地多活，即多机房。有数据备份。
+
+内存 //平均每个服务占几G，几百个服务，加起来几千G。
 
 # 源码分析
 
 # 底层原理和实现
 
 # 参考
-https://github.com/memcached/memcached/wiki
+https://github.com/memcached/memcached/wiki  
+http://www.cnblogs.com/xrq730/p/4954152.html
