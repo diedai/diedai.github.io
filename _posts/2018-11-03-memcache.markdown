@@ -163,8 +163,13 @@ Queries on slow machines should run in well under 1ms. High end servers can serv
 # 底层原理和实现
 
 # 参考
-1.
+1.官方
 https://github.com/memcached/memcached/wiki  
 
+2.书籍
+李智慧老师的《大型网站技术架构 核心原理与案例分析》  
+曾宪杰老师的《大型网站系统与Java中间件实践》
+
+3.网上资料
 http://www.cnblogs.com/xrq730/p/4954152.html
 https://segmentfault.com/a/1190000012950110#articleHeader10
