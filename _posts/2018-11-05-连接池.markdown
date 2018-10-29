@@ -1,3 +1,4 @@
+
 ---
 layout:     post
 title:      "连接池"
@@ -14,15 +15,15 @@ tags:
 # 是什么？
 实现了jdk-sql里的连接池技术。
 
-1.jdk-sql接口  
-包含2部分  
-1）基本功能接口  
+1.jdk-sql接口 
+包含2部分 
+1）基本功能接口 
 2）连接池功能接口
 
-2.数据库厂商jdbc.jar包实现访问数据库的基本功能  
+2.数据库厂商jdbc.jar包实现访问数据库的基本功能 
 实现jdk-sql基本接口。
 
-3.开源连接池框架实现连接池技术  
+3.开源连接池框架实现连接池技术 
 实现jdk-sql连接池接口。
 
 # 作用
@@ -63,12 +64,12 @@ public class GenericDaoIbatisImpl
   implements IGenericDao
 {
   private SqlExecutor sqlExecutor;
-  
+ 
   public void setSqlExecutor(SqlExecutor sqlExecutor)
   {
     this.sqlExecutor = sqlExecutor;
   }
-  
+ 
   public void initialize()
     throws Exception
   {
@@ -81,13 +82,13 @@ public class GenericDaoIbatisImpl
       ReflectUtils.setFieldValue(((SqlMapClientImpl)sqlMapClient).getDelegate(), "sqlExecutor", SqlExecutor.class, this.sqlExecutor);
     }
   }
-  
+ 
   public Object save(Object entity)
   {
     String className = ClassUtils.getShortName(entity.getClass());
     return getSqlMapClientTemplate().insert("add" + className, entity);
   }
-  
+ 
   public Object save(String statementName, Object entity)
   {
     if (StringUtils.isEmpty(statementName)) {
@@ -95,7 +96,7 @@ public class GenericDaoIbatisImpl
     }
     return getSqlMapClientTemplate().insert(statementName, entity);
   }
-  
+ 
   public void saveBatch(final String statementName, final List entityList)
   {
     if ((entityList != null) && (entityList.size() > 0)) {
@@ -105,7 +106,7 @@ public class GenericDaoIbatisImpl
           throws SQLException
         {
           executor.startBatch();
-          
+         
           int batch = 0;
           for (int i = 0; i < entityList.size(); i++)
           {
@@ -124,13 +125,13 @@ public class GenericDaoIbatisImpl
       });
     }
   }
-  
+ 
   public int update(Object parameterObject)
   {
     String className = ClassUtils.getShortName(parameterObject.getClass());
     return getSqlMapClientTemplate().update("update" + className, parameterObject);
   }
-  
+ 
   public int update(String statementName, Object parameterObject)
   {
     if (StringUtils.isEmpty(statementName)) {
@@ -138,7 +139,7 @@ public class GenericDaoIbatisImpl
     }
     return getSqlMapClientTemplate().update(statementName, parameterObject);
   }
-  
+ 
   public void updateBatch(final String statementName, final List paramsList)
   {
     if ((paramsList != null) && (paramsList.size() > 0)) {
@@ -158,7 +159,7 @@ public class GenericDaoIbatisImpl
         });
     }
   }
-  
+ 
   public void updateBatchs(final String statementName, final List paramsList)
   {
     if ((paramsList != null) && (paramsList.size() > 0)) {
@@ -169,7 +170,7 @@ public class GenericDaoIbatisImpl
             throws SQLException
           {
             executor.startBatch();
-            
+           
             int batch = 0;
             for (int i = 0; i < paramsList.size(); i++)
             {
@@ -187,18 +188,18 @@ public class GenericDaoIbatisImpl
         });
     }
   }
-  
+ 
   public int delete(Object parameterObject)
   {
     String className = ClassUtils.getShortName(parameterObject.getClass());
     return getSqlMapClientTemplate().delete("delete" + className, parameterObject);
   }
-  
+ 
   public int delete(String statementName)
   {
     return getSqlMapClientTemplate().delete(statementName);
   }
-  
+ 
   public int delete(String statementName, Object parameterObject)
   {
     if (StringUtils.isEmpty(statementName)) {
@@ -206,22 +207,22 @@ public class GenericDaoIbatisImpl
     }
     return getSqlMapClientTemplate().delete(statementName, parameterObject);
   }
-  
+ 
   public Object get(String statementName, Serializable pkId)
   {
     return getSqlMapClientTemplate().queryForObject(statementName, pkId);
   }
-  
+ 
   public Object getObject(String statementName)
   {
     return getSqlMapClientTemplate().queryForObject(statementName);
   }
-  
+ 
   public Object getObject(String statementName, Object parameterObject)
   {
     return getSqlMapClientTemplate().queryForObject(statementName, parameterObject);
   }
-  
+ 
   public Object findObject(String statementName, Object parameterObject)
   {
     List resultList = null;
@@ -235,7 +236,7 @@ public class GenericDaoIbatisImpl
     }
     return null;
   }
-  
+ 
   public Object findObject(String statementName)
   {
     List resultList = find(statementName);
@@ -244,17 +245,17 @@ public class GenericDaoIbatisImpl
     }
     return null;
   }
-  
+ 
   public List find(String statementName)
   {
     return getSqlMapClientTemplate().queryForList(statementName);
   }
-  
+ 
   public List find(String statementName, Object parameterObject)
   {
     return getSqlMapClientTemplate().queryForList(statementName, parameterObject);
   }
-  
+ 
   public List findList(String statementName, Object parameterObject, int start, int count)
   {
     if (parameterObject == null) {
@@ -262,7 +263,7 @@ public class GenericDaoIbatisImpl
     }
     return getSqlMapClientTemplate().queryForList(statementName, parameterObject, start, count);
   }
-  
+ 
   public Page find(String statementName, String countStatementName, int start, int count)
   {
     Page page = new Page();
@@ -270,10 +271,10 @@ public class GenericDaoIbatisImpl
     page.setTotalRecord(totalCount);
     List dataList = getSqlMapClientTemplate().queryForList(statementName, start, count);
     page.setList(dataList);
-    
+   
     return page;
   }
-  
+ 
   public Page find(String statementName, String countStatementName, Object parameterObject, int start, int count)
   {
     Page page = new Page();
@@ -283,7 +284,7 @@ public class GenericDaoIbatisImpl
     page.setList(dataList);
     return page;
   }
-  
+ 
   public int getRowCount(String statementName, Object parameterObject)
   {
     if (parameterObject != null) {
@@ -301,14 +302,14 @@ spring是一个业务层框架。集成了多种持久层框架。其中也包�
 封装了ibatis。但主要功能和作用是，集成了多种持久层框架，提供一个统一的门面来访问数据库(这是对门面设计模式的应用)，不需要程序员自己与每一个持久层框架打交通，底层的事spring帮你封装好了，不管到时候是使用哪一种持久层框架，现在的spring门面提供的是统一的API，如果需要更换一种底层的持久层框架，只需要配置一下即可。
 
 #### ibatis/hibernate
-持久层框架2大功能，  
-1.封装各个厂商的jdbc  
+持久层框架2大功能， 
+1.封装各个厂商的jdbc 
 作用是实现访问数据库的功能。
 
 2.连接池功能
-2种方法，  
-1）持久层框架自己实现了一个简单的版本  
-2）集成了开源连接池框架  
+2种方法， 
+1）持久层框架自己实现了一个简单的版本 
+2）集成了开源连接池框架 
 例如，ibatis集成了dbcp，hibernate集成了c3p0。
 
 # 开源连接池框架
@@ -335,54 +336,54 @@ https://coolshell.cn/articles/2483.html
 ```
 //applicationContext-mem-common.xml
 <bean id="memSqlMapClient" class="org.springframework.orm.ibatis.SqlMapClientFactoryBean"> //工厂类，主要配置2个东西：1.选择哪一种连接池/数据源实现类 2.ibatis的sql映射文件
-		<property name="configLocation">
-			<value>classpath:mem_SqlMapConfig.xml</value> //1.选择哪一种连接池/数据源实现类
-		</property>
-		<property name="dataSource">
-			<ref bean="memDataSource" /> //2.ibatis的sql映射文件
-		</property>
-	</bean>
-	
-	//连接池/数据源实现类：选择了哪一种数据源实现类，就选择了哪一种数据源。
-	<bean id="memDataSource" class="com.alibaba.druid.pool.DruidDataSource"
-		init-method="init" destroy-method="close">
-		<property name="driverClassName" value="${db.jdbc.mem.driverClass}" />
-		<property name="url" value="${db.jdbc.mem.jdbcUrl}" />
-		<property name="username" value="${db.jdbc.mem.username}" />		
-		<property name="connectProperties">
-			<props>
-				<prop key="password">${db.jdbc.mem.password}</prop>
-				<prop key="oracle.net.CONNECT_TIMEOUT">10000</prop>
-				<prop key="oracle.net.READ_TIMEOUT">60000</prop>
-				<prop key="oracle.jdbc.ReadTimeout">60000</prop> 
-			</props>
-		</property>
-		<property name="passwordCallback">
-			<bean class="com.dinpay.commons.callback.DBPasswordCallback" >
-				<property name="encrypt">
-					<ref bean="encryptMem" />
-				</property>
-			</bean>
-		</property>
-		<property name="filters" value="log4j" />
+        <property name="configLocation">
+            <value>classpath:mem_SqlMapConfig.xml</value> //1.选择哪一种连接池/数据源实现类
+        </property>
+        <property name="dataSource">
+            <ref bean="memDataSource" /> //2.ibatis的sql映射文件
+        </property>
+    </bean>
+   
+    //连接池/数据源实现类：选择了哪一种数据源实现类，就选择了哪一种数据源。
+    <bean id="memDataSource" class="com.alibaba.druid.pool.DruidDataSource"
+        init-method="init" destroy-method="close">
+        <property name="driverClassName" value="${db.jdbc.mem.driverClass}" />
+        <property name="url" value="${db.jdbc.mem.jdbcUrl}" />
+        <property name="username" value="${db.jdbc.mem.username}" />       
+        <property name="connectProperties">
+            <props>
+                <prop key="password">${db.jdbc.mem.password}</prop>
+                <prop key="oracle.net.CONNECT_TIMEOUT">10000</prop>
+                <prop key="oracle.net.READ_TIMEOUT">60000</prop>
+                <prop key="oracle.jdbc.ReadTimeout">60000</prop>
+            </props>
+        </property>
+        <property name="passwordCallback">
+            <bean class="com.dinpay.commons.callback.DBPasswordCallback" >
+                <property name="encrypt">
+                    <ref bean="encryptMem" />
+                </property>
+            </bean>
+        </property>
+        <property name="filters" value="log4j" />
         <property name="proxyFilters">
             <list>
               <ref bean="stat-filter-mem" />
             </list>
         </property>
-		<property name="initialSize" value="${db.jdbc.mem.pool.initialSize}" />
-		<property name="minIdle" value="${db.jdbc.mem.pool.minIdle}" />
-		<property name="maxActive" value="${db.jdbc.mem.pool.maxActive}" /> //连接池最大数量
-		<property name="maxWait" value="60000" />
-		<property name="timeBetweenEvictionRunsMillis" value="180000" />
-		<property name="minEvictableIdleTimeMillis" value="600000" />
-		<property name="validationQuery" value="SELECT 'x' from dual" />
-		<property name="testWhileIdle" value="${db.jdbc.mem.pool.testWhileIdle}" />
-		<property name="testOnBorrow" value="${db.jdbc.mem.pool.testOnBorrow}" />
-		<property name="testOnReturn" value="false" />
-		<property name="poolPreparedStatements" value="true" />
-		<property name="maxPoolPreparedStatementPerConnectionSize" value="${db.jdbc.mem.pool.maxPoolPreparedStatement}" />
-	</bean>
+        <property name="initialSize" value="${db.jdbc.mem.pool.initialSize}" />
+        <property name="minIdle" value="${db.jdbc.mem.pool.minIdle}" />
+        <property name="maxActive" value="${db.jdbc.mem.pool.maxActive}" /> //连接池最大数量
+        <property name="maxWait" value="60000" />
+        <property name="timeBetweenEvictionRunsMillis" value="180000" />
+        <property name="minEvictableIdleTimeMillis" value="600000" />
+        <property name="validationQuery" value="SELECT 'x' from dual" />
+        <property name="testWhileIdle" value="${db.jdbc.mem.pool.testWhileIdle}" />
+        <property name="testOnBorrow" value="${db.jdbc.mem.pool.testOnBorrow}" />
+        <property name="testOnReturn" value="false" />
+        <property name="poolPreparedStatements" value="true" />
+        <property name="maxPoolPreparedStatementPerConnectionSize" value="${db.jdbc.mem.pool.maxPoolPreparedStatement}" />
+    </bean>
 ```
 
 ```
@@ -400,10 +401,10 @@ db.jdbc.mem.pool.maxPoolPreparedStatement=60
 ```
 
 # 连接池一般设置多大
-1.默认是8  
+1.默认是8 
 
-2.工作  
-测试环境20  
+2.工作 
+测试环境20 
 线上环境？
 
 3.官网例子
@@ -413,23 +414,23 @@ db.jdbc.mem.pool.maxPoolPreparedStatement=60
 http://rabbitgyk.com/2018/01/04/druid-configuration/
 
 # 源码分析(推荐/重点/详细步骤和流程)
-步骤，   
+步骤，  
 #### 1.业务层
 控制器层——》业务层。
 
 ```
 //业务层
 public String addMerchant(Merchant merchant) throws BaseRuntimeException {
-		try {
-			String isSucc = (String) iGenericDao.save("addMerchant", merchant);
-			return isSucc;
-		} catch (BaseRuntimeException e) {
-			throw new BaseRuntimeException(e);
-		}
-	}
+        try {
+            String isSucc = (String) iGenericDao.save("addMerchant", merchant);
+            return isSucc;
+        } catch (BaseRuntimeException e) {
+            throw new BaseRuntimeException(e);
+        }
+    }
 ```
 
-#### 2.dao层   
+#### 2.dao层  
 业务层——》dao层。
 
 真正的入口在这里！
@@ -440,12 +441,12 @@ public String addMerchant(Merchant merchant) throws BaseRuntimeException {
 /*     */ public class GenericDaoIbatisImpl extends org.springframework.orm.ibatis.support.SqlMapClientDaoSupport implements IGenericDao //选择spring-orm-ibatis //spring-orm.jar集成了持久层框架，你想选择哪一种，就继承哪一种。这里继承了ibatis，就代表选择ibatis作为持久层框架。//这里继承了是哪一种持久层框架，dao实现类对应的配置文件就配置dao对应的数据，即如果这里继承了ibatis，配置文件就只能选择ibatis。更具体的说是spring-orm.jar里的ibatis，即包spring.orm.ibatis里的类。
 /*     */ {
 /*     */   private SqlExecutor sqlExecutor;
-/*     */   
+/*     */  
 /*     */   public void setSqlExecutor(SqlExecutor sqlExecutor)
 /*     */   {
 /*  25 */     this.sqlExecutor = sqlExecutor;
 /*     */   }
-/*     */   
+/*     */  
 /*     */   public void initialize() throws Exception {
 /*  29 */     if (sqlExecutor != null) {
 /*  30 */       SqlMapClient sqlMapClient = getSqlMapClientTemplate().getSqlMapClient();
@@ -455,12 +456,12 @@ public String addMerchant(Merchant merchant) throws BaseRuntimeException {
 /*  34 */       ReflectUtils.setFieldValue(((SqlMapClientImpl)sqlMapClient).getDelegate(), "sqlExecutor", SqlExecutor.class, sqlExecutor);
 /*     */     }
 /*     */   }
-/*     */   
+/*     */  
 /*     */   public Object save(Object entity) {
 /*  39 */     String className = ClassUtils.getShortName(entity.getClass());
 /*  40 */     return getSqlMapClientTemplate().insert("add" + className, entity);
 /*     */   }
-/*     */   
+/*     */  
 /*     */   public Object save(String statementName, Object entity) {
 /*  44 */     if (StringUtils.isEmpty(statementName)) {
 /*  45 */       return save(entity);
@@ -474,28 +475,28 @@ public String addMerchant(Merchant merchant) throws BaseRuntimeException {
 配置文件以dao对象的继承类为基础。
 ```
 //applicationContext-mem-common.xml
-<bean id="memsqlExecutor" class="com.nbtv.orm.dao.ibatis.executor.LimitSqlExecutor"> //执行器
-		<property name="dialect" ref="memOracleDialect" />
-		<property name="enableLimit" value="true"></property>
-	</bean>
+<bean id="memsqlExecutor" class="com.gzh.orm.dao.ibatis.executor.LimitSqlExecutor"> //执行器
+        <property name="dialect" ref="memOracleDialect" />
+        <property name="enableLimit" value="true"></property>
+    </bean>
 
-	<bean id="memSqlMapClient" class="org.springframework.orm.ibatis.SqlMapClientFactoryBean"> //数据源：只能选择ibatis，具体的说是spring-orm.jar里的ibatis，即包spring.orm.ibatis里的类。
-		<property name="configLocation">
-			<value>classpath:mem_SqlMapConfig.xml</value>
-		</property>
-		<property name="dataSource"> //数据源
-			<ref bean="memDataSource" />
-		</property>
-	</bean>
-	
-	<bean id="memiGenericDao" class="com.nbtv.orm.dao.ibatis.GenericDaoIbatisImpl"	init-method="initialize"> //dao实现类，包含了2个数据：1.选择哪一种数据源 2.执行器
-		<property name="sqlMapClient">
-			<ref bean="memSqlMapClient" />
-		</property>
-		<property name="sqlExecutor">
-			<ref bean="memsqlExecutor" />
-		</property>
-	</bean>
+    <bean id="memSqlMapClient" class="org.springframework.orm.ibatis.SqlMapClientFactoryBean"> //数据源：只能选择ibatis，具体的说是spring-orm.jar里的ibatis，即包spring.orm.ibatis里的类。
+        <property name="configLocation">
+            <value>classpath:mem_SqlMapConfig.xml</value>
+        </property>
+        <property name="dataSource"> //数据源
+            <ref bean="memDataSource" />
+        </property>
+    </bean>
+   
+    <bean id="memiGenericDao" class="com.gzh.orm.dao.ibatis.GenericDaoIbatisImpl"    init-method="initialize"> //dao实现类，包含了2个数据：1.选择哪一种数据源 2.执行器
+        <property name="sqlMapClient">
+            <ref bean="memSqlMapClient" />
+        </property>
+        <property name="sqlExecutor">
+            <ref bean="memsqlExecutor" />
+        </property>
+    </bean>
 ```
 
 #### 3.spring-orm.jar
@@ -509,100 +510,100 @@ package org.springframework.orm.ibatis;
 
 public class SqlMapClientTemplate extends JdbcAccessor implements SqlMapClientOperations {
 
-	private SqlMapClient sqlMapClient;
-	
+    private SqlMapClient sqlMapClient;
+   
 public Object insert(final String statementName, final Object parameterObject)
-			throws DataAccessException {
+            throws DataAccessException {
 
-		return execute(new SqlMapClientCallback<Object>() {
-			public Object doInSqlMapClient(SqlMapExecutor executor) throws SQLException {
-				return executor.insert(statementName, parameterObject);
-			}
-		});
-	}
-	
-	/**
-	 * Execute the given data access action on a SqlMapExecutor.
-	 * @param action callback object that specifies the data access action
-	 * @return a result object returned by the action, or <code>null</code>
-	 * @throws DataAccessException in case of SQL Maps errors
-	 */
-	public <T> T execute(SqlMapClientCallback<T> action) throws DataAccessException {
-		Assert.notNull(action, "Callback object must not be null");
-		Assert.notNull(this.sqlMapClient, "No SqlMapClient specified");
+        return execute(new SqlMapClientCallback<Object>() {
+            public Object doInSqlMapClient(SqlMapExecutor executor) throws SQLException {
+                return executor.insert(statementName, parameterObject);
+            }
+        });
+    }
+   
+    /**
+     * Execute the given data access action on a SqlMapExecutor.
+     * @param action callback object that specifies the data access action
+     * @return a result object returned by the action, or <code>null</code>
+     * @throws DataAccessException in case of SQL Maps errors
+     */
+    public <T> T execute(SqlMapClientCallback<T> action) throws DataAccessException {
+        Assert.notNull(action, "Callback object must not be null");
+        Assert.notNull(this.sqlMapClient, "No SqlMapClient specified");
 
-		// We always need to use a SqlMapSession, as we need to pass a Spring-managed
-		// Connection (potentially transactional) in. This shouldn't be necessary if
-		// we run against a TransactionAwareDataSourceProxy underneath, but unfortunately
-		// we still need it to make iBATIS batch execution work properly: If iBATIS
-		// doesn't recognize an existing transaction, it automatically executes the
-		// batch for every single statement...
+        // We always need to use a SqlMapSession, as we need to pass a Spring-managed
+        // Connection (potentially transactional) in. This shouldn't be necessary if
+        // we run against a TransactionAwareDataSourceProxy underneath, but unfortunately
+        // we still need it to make iBATIS batch execution work properly: If iBATIS
+        // doesn't recognize an existing transaction, it automatically executes the
+        // batch for every single statement...
 
-		SqlMapSession session = this.sqlMapClient.openSession();
-		if (logger.isDebugEnabled()) {
-			logger.debug("Opened SqlMapSession [" + session + "] for iBATIS operation");
-		}
-		Connection ibatisCon = null;
+        SqlMapSession session = this.sqlMapClient.openSession();
+        if (logger.isDebugEnabled()) {
+            logger.debug("Opened SqlMapSession [" + session + "] for iBATIS operation");
+        }
+        Connection ibatisCon = null;
 
-		try {
-			Connection springCon = null;
-			DataSource dataSource = getDataSource(); //获取数据源对象
-			boolean transactionAware = (dataSource instanceof TransactionAwareDataSourceProxy);
+        try {
+            Connection springCon = null;
+            DataSource dataSource = getDataSource(); //获取数据源对象
+            boolean transactionAware = (dataSource instanceof TransactionAwareDataSourceProxy);
 
-			// Obtain JDBC Connection to operate on...
-			try {
-				ibatisCon = session.getCurrentConnection(); //获取连接对象 
-				if (ibatisCon == null) {
-					springCon = (transactionAware ?
-							dataSource.getConnection() : DataSourceUtils.doGetConnection(dataSource));
-					session.setUserConnection(springCon);
-					if (logger.isDebugEnabled()) {
-						logger.debug("Obtained JDBC Connection [" + springCon + "] for iBATIS operation");
-					}
-				}
-				else {
-					if (logger.isDebugEnabled()) {
-						logger.debug("Reusing JDBC Connection [" + ibatisCon + "] for iBATIS operation");
-					}
-				}
-			}
-			catch (SQLException ex) {
-				throw new CannotGetJdbcConnectionException("Could not get JDBC Connection", ex);
-			}
+            // Obtain JDBC Connection to operate on...
+            try {
+                ibatisCon = session.getCurrentConnection(); //获取连接对象
+                if (ibatisCon == null) {
+                    springCon = (transactionAware ?
+                            dataSource.getConnection() : DataSourceUtils.doGetConnection(dataSource));
+                    session.setUserConnection(springCon);
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Obtained JDBC Connection [" + springCon + "] for iBATIS operation");
+                    }
+                }
+                else {
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Reusing JDBC Connection [" + ibatisCon + "] for iBATIS operation");
+                    }
+                }
+            }
+            catch (SQLException ex) {
+                throw new CannotGetJdbcConnectionException("Could not get JDBC Connection", ex);
+            }
 
-			// Execute given callback...
-			try {
-				return action.doInSqlMapClient(session);
-			}
-			catch (SQLException ex) {
-				throw getExceptionTranslator().translate("SqlMapClient operation", null, ex);
-			}
-			finally {
-				try {
-					if (springCon != null) {
-						if (transactionAware) {
-							springCon.close();
-						}
-						else {
-							DataSourceUtils.doReleaseConnection(springCon, dataSource);
-						}
-					}
-				}
-				catch (Throwable ex) {
-					logger.debug("Could not close JDBC Connection", ex);
-				}
-			}
+            // Execute given callback...
+            try {
+                return action.doInSqlMapClient(session);
+            }
+            catch (SQLException ex) {
+                throw getExceptionTranslator().translate("SqlMapClient operation", null, ex);
+            }
+            finally {
+                try {
+                    if (springCon != null) {
+                        if (transactionAware) {
+                            springCon.close();
+                        }
+                        else {
+                            DataSourceUtils.doReleaseConnection(springCon, dataSource);
+                        }
+                    }
+                }
+                catch (Throwable ex) {
+                    logger.debug("Could not close JDBC Connection", ex);
+                }
+            }
 
-			// Processing finished - potentially session still to be closed.
-		}
-		finally {
-			// Only close SqlMapSession if we know we've actually opened it
-			// at the present level.
-			if (ibatisCon == null) {
-				session.close();
-			}
-		}
-	}
+            // Processing finished - potentially session still to be closed.
+        }
+        finally {
+            // Only close SqlMapSession if we know we've actually opened it
+            // at the present level.
+            if (ibatisCon == null) {
+                session.close();
+            }
+        }
+    }
 ```
 
 
@@ -620,7 +621,7 @@ public Object insert(final String statementName, final Object parameterObject)
 /*     */   public Connection getCurrentConnection() throws SQLException {
 /*     */     try {
 /* 208 */       Connection conn = null;
-/* 209 */       Transaction trans = delegate.getTransaction(sessionScope); 
+/* 209 */       Transaction trans = delegate.getTransaction(sessionScope);
 /* 210 */       if (trans != null) {}
 /* 211 */       return trans.getConnection(); //获取连接对象
 /*     */     }
@@ -629,7 +630,7 @@ public Object insert(final String statementName, final Object parameterObject)
 /* 215 */       throw new NestedSQLException("Error getting Connection from Transaction.  Cause: " + e, e);
 /*     */     }
 /*     */   }
-/*     */   
+/*     */  
 /*     */   public DataSource getDataSource() {
 /* 220 */     return delegate.getDataSource();
 /*     */   }
@@ -644,7 +645,7 @@ public Object insert(final String statementName, final Object parameterObject)
 /*    */ {
 
 /*    */   public Connection getConnection() throws SQLException, TransactionException {
-/* 88 */     if (connection == null) { 
+/* 88 */     if (connection == null) {
 /* 89 */       init();//初始化
 /*    */     }
 /* 91 */     return connection;
@@ -657,13 +658,13 @@ public Object insert(final String statementName, final Object parameterObject)
 /* 49 */     if (connection == null) {
 /* 50 */       throw new TransactionException("JdbcTransaction could not start transaction.  Cause: The DataSource returned a null connection.");
 /*    */     }
-/*    */     
+/*    */    
 /* 53 */     isolationLevel.applyIsolationLevel(connection);
-/*    */     
+/*    */    
 /* 55 */     if (connection.getAutoCommit()) {
 /* 56 */       connection.setAutoCommit(false);
 /*    */     }
-/*    */     
+/*    */    
 /* 59 */     if (connectionLog.isDebugEnabled()) {
 /* 60 */       connection = ConnectionLogProxy.newInstance(connection);
 /*    */     }
@@ -687,7 +688,7 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
 public DruidPooledConnection getConnection(long maxWaitMillis) throws SQLException {
         init(); //1.初始化连接池
 
-        if (filters.size() > 0) { 
+        if (filters.size() > 0) {
             FilterChainImpl filterChain = new FilterChainImpl(this);
             return filterChain.dataSource_connect(this, maxWaitMillis);
         } else {
@@ -835,7 +836,7 @@ public void init() throws SQLException {
             }
         }
     }
-    
+   
 //从连接对象数组取一个连接对象
 private DruidPooledConnection getConnectionInternal(long maxWait) throws SQLException {
         if (closed) {
@@ -900,9 +901,10 @@ private DruidPooledConnection getConnectionInternal(long maxWait) throws SQLExce
 ```
 
 # 参考
-1.ibatis  
-https://ibatis.apache.org/docs/java/pdf/iBATIS-SqlMaps-2-Tutorial_cn.pdf  
+1.ibatis 
+https://ibatis.apache.org/docs/java/pdf/iBATIS-SqlMaps-2-Tutorial_cn.pdf 
 https://ibatis.apache.org/docs/java/dev/
+
 
 
 
