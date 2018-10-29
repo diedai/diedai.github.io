@@ -412,9 +412,11 @@ db.jdbc.mem.pool.maxPoolPreparedStatement=60
 4.网上工作实践
 http://rabbitgyk.com/2018/01/04/druid-configuration/
 
-# 源码分析
+# 源码分析(推荐/重点/详细步骤和流程)
 步骤，   
-1.业务层
+#### 1.业务层
+控制器层——》业务层。
+
 ```
 //业务层
 public String addMerchant(Merchant merchant) throws BaseRuntimeException {
@@ -427,7 +429,9 @@ public String addMerchant(Merchant merchant) throws BaseRuntimeException {
 	}
 ```
 
-2.dao层   
+#### 2.dao层   
+业务层——》dao层。
+
 真正的入口在这里！
 
 因为这里选择了使用哪一种连接池/数据源实现类。
@@ -466,7 +470,8 @@ public String addMerchant(Merchant merchant) throws BaseRuntimeException {
 ```
 
 
-再看与dao对象对应的配置文件
+再看与dao对象对应的配置文件。
+配置文件以dao对象的继承类为基础。
 ```
 //applicationContext-mem-common.xml
 <bean id="memsqlExecutor" class="com.nbtv.orm.dao.ibatis.executor.LimitSqlExecutor"> //执行器
@@ -493,7 +498,9 @@ public String addMerchant(Merchant merchant) throws BaseRuntimeException {
 	</bean>
 ```
 
-3.spring-orm.jar
+#### 3.spring-orm.jar
+dao——》springorm.jar。
+
 选择包spring.orm.ibatis里的类。
 
 ```
@@ -599,7 +606,9 @@ public Object insert(final String statementName, final Object parameterObject)
 ```
 
 
-4.ibatis.jar
+#### 4.ibatis.jar
+持久层框架。
+
 ```
 //SqlMapSessionImpl
 /*     */ package com.ibatis.sqlmap.engine.impl;
@@ -644,7 +653,7 @@ public Object insert(final String statementName, final Object parameterObject)
 
 /*    */   private void init() throws SQLException, TransactionException
 /*    */   {
-/* 48 */     connection = dataSource.getConnection(); //从数据源取连接对象
+/* 48 */     connection = dataSource.getConnection(); //从数据源取连接对象：配置文件里有选择哪一个数据源/连接池
 /* 49 */     if (connection == null) {
 /* 50 */       throw new TransactionException("JdbcTransaction could not start transaction.  Cause: The DataSource returned a null connection.");
 /*    */     }
@@ -661,6 +670,9 @@ public Object insert(final String statementName, final Object parameterObject)
 /*    */   }
 ```
 
+#### 5.数据源/连接池框架druid.jar
+持久层框架——》连接池框架。
+
 ```
 //DruidDataSource
 
@@ -671,6 +683,17 @@ package com.alibaba.druid.pool;
  * @author wenshao<szujobs@hotmail.com>
  */
 public class DruidDataSource extends DruidAbstractDataSource implements DruidDataSourceMBean, ManagedDataSource, Referenceable, Closeable, Cloneable, ConnectionPoolDataSource {
+
+public DruidPooledConnection getConnection(long maxWaitMillis) throws SQLException {
+        init(); //1.初始化连接池
+
+        if (filters.size() > 0) { 
+            FilterChainImpl filterChain = new FilterChainImpl(this);
+            return filterChain.dataSource_connect(this, maxWaitMillis);
+        } else {
+            return getConnectionDirect(maxWaitMillis); //2.从连接池取一个连接对象
+        }
+    }
 
 //初始化连接池-连接对象数组
 public void init() throws SQLException {
