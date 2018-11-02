@@ -12,25 +12,25 @@ tags:
 
 
 # 前言
-1.每个对象有一个监视器。
+1.每个对象有一个监视器。  
 2.每个对象还有一个线程集合。线程集合只能通过锁对象.wait/notify来操作。
 
 # 作用
-可以线程通信的问题。线程通信需要处理同步问题，怎么处理？有2种方法：
-1.wait/notify
+可以线程通信的问题。线程通信需要处理同步问题，怎么处理？有2种方法：  
+1.wait/notify  
 2.同步机制
 
 # 怎么用
-1.当前线程必须获取/拥有锁对象
+1.当前线程必须获取/拥有锁对象  
 哪个线程要调用锁对象的wait/notify，它必须要先获取锁对象。
 
 线程对象调用锁对象的wait/notify之前，必须确保当前线程拥有锁对象。
 所以，这就导致必须在同步代码块里调用锁对象的wait/notify。因为只有在同步代码块里调用锁对象的wait/notify，当前线程才会拥有锁对象，也才可能调用锁对象的wait/notify。
 
-2.同一个对象
+2.同一个对象  
 锁对象和锁对象.wait/notify，必须是同一个对象。否则会报错-非法监视器状态异常。
 
-3.锁对象.wait/notify，必须在同步代码块/方法里
+3.锁对象.wait/notify，必须在同步代码块/方法里  
 因为锁对象/监视器 和 锁对象.wait/notify 里的锁对象，必须是同一个对象。即2里说的。
 
 ```
@@ -55,10 +55,10 @@ wait()等同于wait(0)。
 参数为0，表示无限等待，即一直等待下去，直到被另外一个线程通知。
 
 # what is the difference between wait and sleep、yield？
-共同点
+共同点  
 都是停止当前线程执行。
 
-不同点
+不同点  
 1.是否放弃锁
 wait //线程A会放弃锁。什么时候恢复？1.在指定时间到之前，有另外一个线程B修改数据之后即完成任务之后调用notify，线程A重新获取锁重新执行。2.一直没有别的线程调用notify，时间到，线程A继续获取锁继续执行。
 
@@ -73,8 +73,8 @@ https://javarevisited.blogspot.com/2011/12/difference-between-wait-sleep-yield.h
 https://www.jianshu.com/p/25e959037eed
 
 # wait和join的区别
-1.锁对象.wait/notify
-2.线程对象.join——》this.wait——》锁对象是线程对象
+1.锁对象.wait/notify  
+2.线程对象.join——》this.wait——》锁对象是线程对象  
 作用？让当前主线程等待，直到对象锁线程1( 指的是主线程调用线程1.join() )执行完毕。接着启动线程2。这样就确保了线程1和线程2按顺序执行。
 
 http://www.importnew.com/14958.html
@@ -138,7 +138,7 @@ https://juejin.im/post/5b3054c66fb9a00e4d53ef75
 https://docs.oracle.com/javase/7/docs/api/java/lang/Object.html#wait()
 
 
-# 线程通信的各种需求
+# 线程通信的各种场景分析
 http://wingjay.com/2017/04/09/Java%E9%87%8C%E5%A6%82%E4%BD%95%E5%AE%9E%E7%8E%B0%E7%BA%BF%E7%A8%8B%E9%97%B4%E9%80%9A%E4%BF%A1%EF%BC%9F/
 
 
