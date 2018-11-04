@@ -137,7 +137,7 @@ gitbook
 
 （setting里面设置）
 
-![](/http://pg60ucix6.bkt.clouddn.com/69942444.png)
+![](http://github-blog1.oss-cn-shenzhen.aliyuncs.com/69942444.png?Expires=1541327650&OSSAccessKeyId=TMP.AQFQnny8geufMf7ah6-_STWNSpg-Bees2QQnCQjBdOHiVxhFudMie9wYQeimAAAwLAIUVXcSedWrrscgUhzdoaRszKRnwIcCFGsNlauTpJrx6hoyUlvYsZ548Z0s&Signature=XAM9WmtLkyhLo2h7o3oh1Xn25Qo%3D)
 
 
 （仓库内容）
