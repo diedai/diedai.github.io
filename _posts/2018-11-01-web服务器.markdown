@@ -295,6 +295,19 @@ MVC框架的拦截器也是一层一层的
   </servlet-mapping>
 ```
 
+# 服务器的目标
+1.多  
+多线程。多用户。同时接受多个用户的请求。//吞吐量
+
+2.快  
+每个线程每个用户处理要快，响应要快。 //提高响应速度
+
+3.好  
+源码写的好懂好维护。//代码可维护
+
+4.省  
+节省各种硬件资源。
+
 # 参考
 1.有一本介绍tomcat怎么实现的好书。
 
@@ -306,5 +319,7 @@ https://www.ibm.com/developerworks/cn/java/j-lo-tomcat1/index.html
 3.官方文档  
 servlet api specication  
 http://download.oracle.com/otn-pub/jcp/servlet-3.0-fr-eval-oth-JSpec/servlet-3_0-final-spec.pdf?AuthParam=1540281754_1dc207c61d739c0cb9b3f451f150a3e4
+
+
 
 
