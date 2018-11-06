@@ -1,7 +1,7 @@
 ---
 layout:     post
-title:      "连接池"
-subtitle:   " \"连接池技术\""
+title:      "线程池"
+subtitle:   " \"线程池技术\""
 date:       2018-11-05 07:00:00
 author:     "青乡"
 header-img: "img/post-bg-2015.jpg"
