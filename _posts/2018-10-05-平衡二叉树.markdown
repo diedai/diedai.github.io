@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:      "二叉树"
+title:      "平衡二叉树"
 subtitle:   " \"binary tree\""
 date:       2018-10-05 06:00:00
 author:     "青乡"
@@ -285,14 +285,6 @@ abc三种情况都一样。
 
 
 2.各种方法的实现
-
-
-
-
-
-# 红黑树
-
-
 
 # 反转二叉树
 
