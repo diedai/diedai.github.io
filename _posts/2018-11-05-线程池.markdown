@@ -1,0 +1,1244 @@
+---
+layout:     post
+title:      "连接池"
+subtitle:   " \"连接池技术\""
+date:       2018-11-05 07:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - 线程池
+    - Thread Pool
+---
+
+
+# 怎么用
+会了。
+
+# 类
+1.任务和线程
+2.提交任务的类-任务执行器
+3.创建提交任务类的类-任务执行器的工厂类
+
+#### 为什么要弄一个Callable出来?
+并发包里的任务Callable(相当于是Runnable)和任务实现类FutureTask(相当于是Thread)。
+1.一般使用是Runnable
+2.为什么要弄一个Callable出来？
+A Runnable, however, does not return a result and cannot throw a checked exception.
+
+Runnable不能返回结果。但是Callable可以。
+
+例子
+结果 = 线程池.启动一个线程(任务);
+Future f = 线程池.summit(FutureTask);
+
+---
+返回的结果有什么用？
+
+# 类的细节？
+要做到倒背如流。
+
+# Thread类表示线程对象，Runnable表示什么？
+表示任务。
+
+怎么用？
+使用Runnable的时候，必须把Runnable(即任务)和Thread关联起来，任务才可以被执行。
+
+怎么关联？new Thread(任务)的时候，把任务作为参数，传过去就可以了。
+
+因为设计的时候，Thread类是包含了任务。
+
+为什么要这么设计？解耦线程类本身和任务。两者分别完成自己的功能就可以了：
+1.任务
+是程序员需要关心的业务功能。
+2.线程对象
+是虚拟机需要关注的数据，虚拟机需要管理线程对象。
+
+任务是任务，关注的是业务，线程是线程，关注的是操作系统管理的最小运行单元本身，一个任务绑定一个线程，本质上的目的是为了同时处理多个任务。比如，web服务器，同时处理多个任务，即多个请求，那么就是提高了吞吐率。这样的话，每个用户的每次请求也更快了，这就提高了响应速度/处理速度。
+
+# 工作项目
+会了。
+
+# 网友资料
+
+# 学习资料
+《并发编程实践》专门有1章讲线程池。
+
+# 源码分析
+线程池？
+怎么提交任务？怎么执行Thread.start()？
+
+---
+取线程？
+1.每次都是新建一个线程
+2.没看到从线程池里取一个线程对象？
+
+---
+内部设计
+1.线程池执行器
+作用，提交任务到线程，启动线程。
+
+2.任务队列
+把任务放到队列。而不是立即新建一个线程。这样做的好处是，任务队列只是暂时保存数据，而如果每次来了一个任务都新建一个线程的话，这些新的线程会互相竞争，包括和旧的线程相互竞争，旧的线程本来就没有执行完毕，现在又有新的线程来和它们竞争，导致旧的线程花费时间太久，响应太慢。
+
+3.线程池
+
+
+---
+任务队列
+1.无限大小
+链表。
+
+优点，可以无限接受请求/任务。
+缺点，可能耗尽硬件资源。
+
+2.有限大小
+数组。
+
+优点，可以避免耗尽硬件资源。
+缺点，当任务队列已满，如果还有新的任务怎么办？饱和策略。
+
+---
+饱和策略？
+
+--- 
+任务队列-阻塞队列？
+阻塞队列和线程复用之间的关系？
+
+# 底层原理
+线程池是什么？是线程对象的数组吗？每次从数组里取一个，就和数据库连接池一样？  
+不是。线程池是规定了线程个数的大小，根据线程大小来判断是否需要创建新的线程，具体来说是线程池执行器有个线程计数器(每次创建新的线程，就增加1)，根据当前线程池里的线程计数器就可以知道目前已经创建几个线程，拿这个数量和线程池大小比较就可以了：
+1.如果已经创建的线程数量比线程池大小要小
+创建新的线程，启动新的线程，执行新的任务。即时这个时候，线程池有空闲线程，仍然新建线程。
+2.如果要大
+先把任务放到任务队列，然后等待线程池的空闲线程，就是当别的任务/线程执行完毕了，空闲出来的线程就去执行任务队列里的任务，当然执行之前需要先从任务队列取一个任务出来。
+
+这就是对线程对象的重复利用！
+
+源码是怎么实现这一点的，就是怎么实现线程对象的复用？
+```
+//jdk7-ThreadPollExecutor
+/**
+
+     * Executes the given task sometime in the future.  The task
+
+     * may execute in a new thread or in an existing pooled thread.
+
+     *
+
+     * If the task cannot be submitted for execution, either because this
+
+     * executor has been shutdown or because its capacity has been reached,
+
+     * the task is handled by the current {@code RejectedExecutionHandler}.
+
+     *
+
+     * @param command the task to execute
+
+     * @throws RejectedExecutionException at discretion of
+
+     *         {@code RejectedExecutionHandler}, if the task
+
+     *         cannot be accepted for execution
+
+     * @throws NullPointerException if {@code command} is null
+
+     */
+
+    public void execute(Runnable command) {
+
+        if (command == null)
+
+            throw new NullPointerException();
+
+        /*
+
+         * Proceed in 3 steps:
+
+         *
+
+         * 1. If fewer than corePoolSize threads are running, try to
+
+         * start a new thread with the given command as its first
+
+         * task.  The call to addWorker atomically checks runState and
+
+         * workerCount, and so prevents false alarms that would add
+
+         * threads when it shouldn't, by returning false.
+
+         *
+
+         * 2. If a task can be successfully queued, then we still need
+
+         * to double-check whether we should have added a thread
+
+         * (because existing ones died since last checking) or that
+
+         * the pool shut down since entry into this method. So we
+
+         * recheck state and if necessary roll back the enqueuing if
+
+         * stopped, or start a new thread if there are none.
+
+         *
+
+         * 3. If we cannot queue task, then we try to add a new
+
+         * thread.  If it fails, we know we are shut down or saturated
+
+         * and so reject the task.
+
+         */
+
+        int c = ctl.get();
+
+        if (workerCountOf(c) < corePoolSize) { //如果线程池线程数量未满，那么新建线程并且启动线程
+
+            if (addWorker(command, true))
+
+                return;
+
+            c = ctl.get();
+
+        }
+
+        if (isRunning(c) && workQueue.offer(command)) { //如果线程池线程数量已满，那么把当前数据(即任务)添加到链表阻塞队列。//阻塞队列里的数据什么时候和在哪里的代码被再次消费呢？
+
+            int recheck = ctl.get();
+
+            if (! isRunning(recheck) && remove(command))
+
+                reject(command);
+
+            else if (workerCountOf(recheck) == 0)
+
+                addWorker(null, false);
+
+        }
+
+        else if (!addWorker(command, false))
+
+            reject(command);
+
+    }
+
+
+
+/**
+
+     * Checks if a new worker can be added with respect to current
+
+     * pool state and the given bound (either core or maximum). If so,
+
+     * the worker count is adjusted accordingly, and, if possible, a
+
+     * new worker is created and started, running firstTask as its
+
+     * first task. This method returns false if the pool is stopped or
+
+     * eligible to shut down. It also returns false if the thread
+
+     * factory fails to create a thread when asked.  If the thread
+
+     * creation fails, either due to the thread factory returning
+
+     * null, or due to an exception (typically OutOfMemoryError in
+
+     * Thread#start), we roll back cleanly.
+
+     *
+
+     * @param firstTask the task the new thread should run first (or
+
+     * null if none). Workers are created with an initial first task
+
+     * (in method execute()) to bypass queuing when there are fewer
+
+     * than corePoolSize threads (in which case we always start one),
+
+     * or when the queue is full (in which case we must bypass queue).
+
+     * Initially idle threads are usually created via
+
+     * prestartCoreThread or to replace other dying workers.
+
+     *
+
+     * @param core if true use corePoolSize as bound, else
+
+     * maximumPoolSize. (A boolean indicator is used here rather than a
+
+     * value to ensure reads of fresh values after checking other pool
+
+     * state).
+
+     * @return true if successful
+
+     */
+
+    private boolean addWorker(Runnable firstTask, boolean core) {
+
+        retry:
+
+        for (;;) {
+
+            int c = ctl.get();
+
+            int rs = runStateOf(c);
+
+
+
+            // Check if queue empty only if necessary.
+
+            if (rs >= SHUTDOWN &&
+
+                ! (rs == SHUTDOWN &&
+
+                   firstTask == null &&
+
+                   ! workQueue.isEmpty()))
+
+                return false;
+
+
+
+            for (;;) {
+
+                int wc = workerCountOf(c);
+
+                if (wc >= CAPACITY ||
+
+                    wc >= (core ? corePoolSize : maximumPoolSize))
+
+                    return false;
+
+                if (compareAndIncrementWorkerCount(c))
+
+                    break retry;
+
+                c = ctl.get();  // Re-read ctl
+
+                if (runStateOf(c) != rs)
+
+                    continue retry;
+
+                // else CAS failed due to workerCount change; retry inner loop
+
+            }
+
+        }
+
+
+
+        boolean workerStarted = false;
+
+        boolean workerAdded = false;
+
+        Worker w = null;
+
+        try {
+
+            final ReentrantLock mainLock = this.mainLock;
+
+            w = new Worker(firstTask); //
+
+            final Thread t = w.thread;
+
+            if (t != null) {
+
+                mainLock.lock();
+
+                try {
+
+                    // Recheck while holding lock.
+
+                    // Back out on ThreadFactory failure or if
+
+                    // shut down before lock acquired.
+
+                    int c = ctl.get();
+
+                    int rs = runStateOf(c);
+
+
+
+                    if (rs < SHUTDOWN ||
+
+                        (rs == SHUTDOWN && firstTask == null)) {
+
+                        if (t.isAlive()) // precheck that t is startable
+
+                            throw new IllegalThreadStateException();
+
+                        workers.add(w);
+
+                        int s = workers.size();
+
+                        if (s > largestPoolSize)
+
+                            largestPoolSize = s;
+
+                        workerAdded = true;
+
+                    }
+
+                } finally {
+
+                    mainLock.unlock();
+
+                }
+
+                if (workerAdded) {
+
+                    t.start(); //启动线程，即启动Work线程
+
+                    workerStarted = true;
+
+                }
+
+            }
+
+        } finally {
+
+            if (! workerStarted)
+
+                addWorkerFailed(w);
+
+        }
+
+        return workerStarted;
+
+    }
+
+
+
+/**
+
+     * Class Worker mainly maintains interrupt control state for
+
+     * threads running tasks, along with other minor bookkeeping.
+
+     * This class opportunistically extends AbstractQueuedSynchronizer
+
+     * to simplify acquiring and releasing a lock surrounding each
+
+     * task execution.  This protects against interrupts that are
+
+     * intended to wake up a worker thread waiting for a task from
+
+     * instead interrupting a task being run.  We implement a simple
+
+     * non-reentrant mutual exclusion lock rather than use
+
+     * ReentrantLock because we do not want worker tasks to be able to
+
+     * reacquire the lock when they invoke pool control methods like
+
+     * setCorePoolSize.  Additionally, to suppress interrupts until
+
+     * the thread actually starts running tasks, we initialize lock
+
+     * state to a negative value, and clear it upon start (in
+
+     * runWorker).
+
+     */
+
+    private final class Worker
+
+        extends AbstractQueuedSynchronizer
+
+        implements Runnable
+
+    {
+
+        /**
+
+         * This class will never be serialized, but we provide a
+
+         * serialVersionUID to suppress a javac warning.
+
+         */
+
+        private static final long serialVersionUID = 6138294804551838833L;
+
+
+
+        /** Thread this worker is running in.  Null if factory fails. */
+
+        final Thread thread; //当前线程
+
+        /** Initial task to run.  Possibly null. */
+
+        Runnable firstTask; //当前任务
+
+        /** Per-thread task counter */
+
+        volatile long completedTasks;
+
+
+
+        /**
+
+         * Creates with given first task and thread from ThreadFactory.
+
+         * @param firstTask the first task (null if none)
+
+         */
+
+        Worker(Runnable firstTask) {
+
+            setState(-1); // inhibit interrupts until runWorker
+
+            this.firstTask = firstTask; //任务
+
+            this.thread = getThreadFactory().newThread(this); //new Worker()时的当前对象work就是this，也就是说当前对象work就是当前线程
+
+        }
+
+
+
+        /** Delegates main run loop to outer runWorker  */
+
+        public void run() { //启动Workder线程之后，jvm自动调用任务的run()方法。//Worker既包含了线程对象，又包含了任务对象。
+
+            runWorker(this);
+
+        }
+
+
+
+```
+
+```
+/**
+
+     * The default thread factory
+
+     */
+
+    static class DefaultThreadFactory implements ThreadFactory {
+
+        private static final AtomicInteger poolNumber = new AtomicInteger(1);
+
+        private final ThreadGroup group;
+
+        private final AtomicInteger threadNumber = new AtomicInteger(1);
+
+        private final String namePrefix;
+
+
+
+        DefaultThreadFactory() {
+
+            SecurityManager s = System.getSecurityManager();
+
+            group = (s != null) ? s.getThreadGroup() :
+
+                                  Thread.currentThread().getThreadGroup();
+
+            namePrefix = "pool-" +
+
+                          poolNumber.getAndIncrement() +
+
+                         "-thread-";
+
+        }
+
+
+
+        public Thread newThread(Runnable r) {
+
+            Thread t = new Thread(group, r,
+
+                                  namePrefix + threadNumber.getAndIncrement(),
+
+                                  0);
+
+            if (t.isDaemon())
+
+                t.setDaemon(false);
+
+            if (t.getPriority() != Thread.NORM_PRIORITY)
+
+                t.setPriority(Thread.NORM_PRIORITY);
+
+            return t;
+
+        }
+
+    }
+
+
+```
+
+---
+Worker集合和和任务队列的区别？为什么要搞2个集合？
+1.任务队列
+纯粹是一个放数据的地方，是一个集合。这也是它唯一的作用。
+另外，线程池使用的是阻塞队列，所以除了放数据的作用之外，顾名思义还具备了阻塞功能。而阻塞功能是实现线程复用的一个前提。
+
+```
+/**
+
+     * The queue used for holding tasks and handing off to worker
+
+     * threads.  We do not require that workQueue.poll() returning
+
+     * null necessarily means that workQueue.isEmpty(), so rely
+
+     * solely on isEmpty to see if the queue is empty (which we must
+
+     * do for example when deciding whether to transition from
+
+     * SHUTDOWN to TIDYING).  This accommodates special-purpose
+
+     * queues such as DelayQueues for which poll() is allowed to
+
+     * return null even if it may later return non-null when delays
+
+     * expire.
+
+     */
+
+    private final BlockingQueue<Runnable> workQueue;
+
+
+
+```
+
+2.Worker集合
+1）包含了线程对象
+线程对象包含的任务，又是Worker本身。因为Worker继承了Runnable。
+
+2）又包含了任务
+这个任务才是真正的最后要执行的任务。
+而Worker本身这个任务的作用只是为了最终去调用程序员自定义任务。
+
+```
+/**
+
+     * Set containing all worker threads in pool. Accessed only when
+
+     * holding mainLock.
+
+     */
+
+    private final HashSet<Worker> workers = new HashSet<Worker>();
+
+```
+
+总结
+搞2个集合的目的，以及使用了阻塞队列这个数据结构，这2个结合起来就可以实现线程复用的功能，
+1.如果线程对象池的线程对象未满，那么新建线程对象，哪怕已有的线程对象是闲置的状态。
+这种情况，新建了线程对象，新的任务也是由新建的线程对象来处理。
+
+2.如果线程池已满，那么把任务添加到阻塞队列即可。
+这种情况，没有新建线程对象，因为线程池已满，不能再新建线程对象了。
+只是把任务添加到阻塞队列。
+那么阻塞队列的任务，什么时候被执行？在哪里被执行？
+
+3.线程池的线程对象全部被创建完毕，全部在运行的时候：这些线程对象，会从阻塞队列取数据，而且是循环取数据，不断地消费阻塞队列里的数据/任务。
+
+一个线程是可以处理多个任务的，这就是线程复用的原理！
+
+怎么处理多个任务？循环取任务就可以了。  
+底层数据结构？阻塞队列。
+
+```
+/**
+
+     * Main worker run loop.  Repeatedly gets tasks from queue and
+
+     * executes them, while coping with a number of issues:
+
+     *
+
+     * 1. We may start out with an initial task, in which case we
+
+     * don't need to get the first one. Otherwise, as long as pool is
+
+     * running, we get tasks from getTask. If it returns null then the
+
+     * worker exits due to changed pool state or configuration
+
+     * parameters.  Other exits result from exception throws in
+
+     * external code, in which case completedAbruptly holds, which
+
+     * usually leads processWorkerExit to replace this thread.
+
+     *
+
+     * 2. Before running any task, the lock is acquired to prevent
+
+     * other pool interrupts while the task is executing, and then we
+
+     * ensure that unless pool is stopping, this thread does not have
+
+     * its interrupt set.
+
+     *
+
+     * 3. Each task run is preceded by a call to beforeExecute, which
+
+     * might throw an exception, in which case we cause thread to die
+
+     * (breaking loop with completedAbruptly true) without processing
+
+     * the task.
+
+     *
+
+     * 4. Assuming beforeExecute completes normally, we run the task,
+
+     * gathering any of its thrown exceptions to send to afterExecute.
+
+     * We separately handle RuntimeException, Error (both of which the
+
+     * specs guarantee that we trap) and arbitrary Throwables.
+
+     * Because we cannot rethrow Throwables within Runnable.run, we
+
+     * wrap them within Errors on the way out (to the thread's
+
+     * UncaughtExceptionHandler).  Any thrown exception also
+
+     * conservatively causes thread to die.
+
+     *
+
+     * 5. After task.run completes, we call afterExecute, which may
+
+     * also throw an exception, which will also cause thread to
+
+     * die. According to JLS Sec 14.20, this exception is the one that
+
+     * will be in effect even if task.run throws.
+
+     *
+
+     * The net effect of the exception mechanics is that afterExecute
+
+     * and the thread's UncaughtExceptionHandler have as accurate
+
+     * information as we can provide about any problems encountered by
+
+     * user code.
+
+     *
+
+     * @param w the worker
+
+     */
+
+    final void runWorker(Worker w) {
+
+        Thread wt = Thread.currentThread();
+
+        Runnable task = w.firstTask;
+
+        w.firstTask = null;
+
+        w.unlock(); // allow interrupts
+
+        boolean completedAbruptly = true;
+
+        try {
+
+            while (task != null || (task = getTask()) != null) { //2种请求，1.新的任务不为null：新建线程对象，新的任务由新建线程对象处理——也就是条件判断里的第一个条件task != null  2.新建任务执行完毕之后，被设置为null——所以循环第二次的时候，task已经为null，因为已经消费过了这个任务；接着，这个新建线程继续取阻塞队列里的任务，然后执行第二个任务——这里就体现了线程对象的复用，就是一个线程对象可以处理多个任务。
+
+                w.lock();
+
+                // If pool is stopping, ensure thread is interrupted;
+
+                // if not, ensure thread is not interrupted.  This
+
+                // requires a recheck in second case to deal with
+
+                // shutdownNow race while clearing interrupt
+
+                if ((runStateAtLeast(ctl.get(), STOP) ||
+
+                     (Thread.interrupted() &&
+
+                      runStateAtLeast(ctl.get(), STOP))) &&
+
+                    !wt.isInterrupted())
+
+                    wt.interrupt();
+
+                try {
+
+                    beforeExecute(wt, task);
+
+                    Throwable thrown = null;
+
+                    try {
+
+                        task.run();
+
+                    } catch (RuntimeException x) {
+
+                        thrown = x; throw x;
+
+                    } catch (Error x) {
+
+                        thrown = x; throw x;
+
+                    } catch (Throwable x) {
+
+                        thrown = x; throw new Error(x);
+
+                    } finally {
+
+                        afterExecute(task, thrown);
+
+                    }
+
+                } finally {
+
+                    task = null; //新建任务执行完毕之后，被设置为null；每次取的任务，执行完毕之后，都会被设置为null——然后，循环代码接着继续取下一个任务从阻塞队列。
+
+                    w.completedTasks++;
+
+                    w.unlock();
+
+                }
+
+            }
+
+            completedAbruptly = false;
+
+        } finally {
+
+            processWorkerExit(w, completedAbruptly);
+
+        }
+
+    }
+
+
+
+
+/**
+
+     * Performs blocking or timed wait for a task, depending on
+
+     * current configuration settings, or returns null if this worker
+
+     * must exit because of any of:
+
+     * 1. There are more than maximumPoolSize workers (due to
+
+     *    a call to setMaximumPoolSize).
+
+     * 2. The pool is stopped.
+
+     * 3. The pool is shutdown and the queue is empty.
+
+     * 4. This worker timed out waiting for a task, and timed-out
+
+     *    workers are subject to termination (that is,
+
+     *    {@code allowCoreThreadTimeOut || workerCount > corePoolSize})
+
+     *    both before and after the timed wait, and if the queue is
+
+     *    non-empty, this worker is not the last thread in the pool.
+
+     *
+
+     * @return task, or null if the worker must exit, in which case
+
+     *         workerCount is decremented
+
+     */
+
+    private Runnable getTask() { //从阻塞队列取任务
+
+        boolean timedOut = false; // Did the last poll() time out?
+
+
+
+        for (;;) {
+
+            int c = ctl.get();
+
+            int rs = runStateOf(c);
+
+
+
+            // Check if queue empty only if necessary.
+
+            if (rs >= SHUTDOWN && (rs >= STOP || workQueue.isEmpty())) {
+
+                decrementWorkerCount();
+
+                return null;
+
+            }
+
+
+
+            int wc = workerCountOf(c);
+
+
+
+            // Are workers subject to culling?
+
+            boolean timed = allowCoreThreadTimeOut || wc > corePoolSize;
+
+
+
+            if ((wc > maximumPoolSize || (timed && timedOut))
+
+                && (wc > 1 || workQueue.isEmpty())) {
+
+                if (compareAndDecrementWorkerCount(c))
+
+                    return null;
+
+                continue;
+
+            }
+
+
+
+            try {
+
+                Runnable r = timed ?
+
+                    workQueue.poll(keepAliveTime, TimeUnit.NANOSECONDS) :
+
+                    workQueue.take();
+
+                if (r != null)
+
+                    return r;
+
+                timedOut = true;
+
+            } catch (InterruptedException retry) {
+
+                timedOut = false;
+
+            }
+
+        }
+
+    }
+
+
+```
+
+
+
+---
+Work.run()在哪里调用的？
+Worker又包含了线程，又包含了任务。
+Worker本身也是一个任务，因为它继承了Runnable。把自己作为任务传给自己包含的线程。所以启动Worker.thread时，会调用任务(即Worker本身)的run()方法。Worker.run()方法又调用了runWorker()，即调用真正的任务.run()，所谓真正的任务就是程序员自定义任务。
+
+```
+/**
+
+     * Main worker run loop.  Repeatedly gets tasks from queue and
+
+     * executes them, while coping with a number of issues:
+
+     *
+
+     * 1. We may start out with an initial task, in which case we
+
+     * don't need to get the first one. Otherwise, as long as pool is
+
+     * running, we get tasks from getTask. If it returns null then the
+
+     * worker exits due to changed pool state or configuration
+
+     * parameters.  Other exits result from exception throws in
+
+     * external code, in which case completedAbruptly holds, which
+
+     * usually leads processWorkerExit to replace this thread.    
+
+     *
+
+     * 2. Before running any task, the lock is acquired to prevent
+
+     * other pool interrupts while the task is executing, and then we
+
+     * ensure that unless pool is stopping, this thread does not have
+
+     * its interrupt set.
+
+     *
+
+     * 3. Each task run is preceded by a call to beforeExecute, which
+
+     * might throw an exception, in which case we cause thread to die
+
+     * (breaking loop with completedAbruptly true) without processing
+
+     * the task.
+
+     *
+
+     * 4. Assuming beforeExecute completes normally, we run the task,
+
+     * gathering any of its thrown exceptions to send to afterExecute.
+
+     * We separately handle RuntimeException, Error (both of which the
+
+     * specs guarantee that we trap) and arbitrary Throwables.
+
+     * Because we cannot rethrow Throwables within Runnable.run, we
+
+     * wrap them within Errors on the way out (to the thread's
+
+     * UncaughtExceptionHandler).  Any thrown exception also
+
+     * conservatively causes thread to die.
+
+     *
+
+     * 5. After task.run completes, we call afterExecute, which may
+
+     * also throw an exception, which will also cause thread to
+
+     * die. According to JLS Sec 14.20, this exception is the one that
+
+     * will be in effect even if task.run throws.
+
+     *
+
+     * The net effect of the exception mechanics is that afterExecute
+
+     * and the thread's UncaughtExceptionHandler have as accurate
+
+     * information as we can provide about any problems encountered by
+
+     * user code.
+
+     *
+
+     * @param w the worker
+
+     */
+
+    final void runWorker(Worker w) {
+
+        Thread wt = Thread.currentThread();
+
+        Runnable task = w.firstTask;
+
+        w.firstTask = null;
+
+        w.unlock(); // allow interrupts
+
+        boolean completedAbruptly = true;
+
+        try {
+
+            while (task != null || (task = getTask()) != null) { //如果当前任务不为null或者任务队列里的数据不为null，那么就执行任务
+
+                w.lock();
+
+                // If pool is stopping, ensure thread is interrupted;
+
+                // if not, ensure thread is not interrupted.  This
+
+                // requires a recheck in second case to deal with
+
+                // shutdownNow race while clearing interrupt
+
+                if ((runStateAtLeast(ctl.get(), STOP) ||
+
+                     (Thread.interrupted() &&
+
+                      runStateAtLeast(ctl.get(), STOP))) &&
+
+                    !wt.isInterrupted())
+
+                    wt.interrupt();
+
+                try {
+
+                    beforeExecute(wt, task);
+
+                    Throwable thrown = null;
+
+                    try {
+
+                        task.run(); //最终，执行真正任务的run()。
+
+                    } catch (RuntimeException x) {
+
+                        thrown = x; throw x;
+
+                    } catch (Error x) {
+
+                        thrown = x; throw x;
+
+                    } catch (Throwable x) {
+
+                        thrown = x; throw new Error(x);
+
+                    } finally {
+
+                        afterExecute(task, thrown);
+
+                    }
+
+                } finally {
+
+                    task = null;
+
+                    w.completedTasks++;
+
+                    w.unlock();
+
+                }
+
+            }
+
+            completedAbruptly = false;
+
+        } finally {
+
+            processWorkerExit(w, completedAbruptly);
+
+        }
+
+    }
+
+
+
+ /**
+
+     * Performs blocking or timed wait for a task, depending on
+
+     * current configuration settings, or returns null if this worker
+
+     * must exit because of any of:
+
+     * 1. There are more than maximumPoolSize workers (due to
+
+     *    a call to setMaximumPoolSize).
+
+     * 2. The pool is stopped.
+
+     * 3. The pool is shutdown and the queue is empty.
+
+     * 4. This worker timed out waiting for a task, and timed-out
+
+     *    workers are subject to termination (that is,
+
+     *    {@code allowCoreThreadTimeOut || workerCount > corePoolSize})
+
+     *    both before and after the timed wait, and if the queue is
+
+     *    non-empty, this worker is not the last thread in the pool.
+
+     *
+
+     * @return task, or null if the worker must exit, in which case
+
+     *         workerCount is decremented
+
+     */
+
+    private Runnable getTask() {
+
+        boolean timedOut = false; // Did the last poll() time out?
+
+
+
+        for (;;) {
+
+            int c = ctl.get();
+
+            int rs = runStateOf(c);
+
+
+
+            // Check if queue empty only if necessary.
+
+            if (rs >= SHUTDOWN && (rs >= STOP || workQueue.isEmpty())) {
+
+                decrementWorkerCount();
+
+                return null;
+
+            }
+
+
+
+            int wc = workerCountOf(c);
+
+
+
+            // Are workers subject to culling?
+
+            boolean timed = allowCoreThreadTimeOut || wc > corePoolSize;
+
+
+
+            if ((wc > maximumPoolSize || (timed && timedOut))
+
+                && (wc > 1 || workQueue.isEmpty())) {
+
+                if (compareAndDecrementWorkerCount(c))
+
+                    return null;
+
+                continue;
+
+            }
+
+
+
+            try {
+
+                Runnable r = timed ?
+
+                    workQueue.poll(keepAliveTime, TimeUnit.NANOSECONDS) : //
+
+                    workQueue.take();//阻塞取数据
+
+                if (r != null)
+
+                    return r;
+
+                timedOut = true;
+
+            } catch (InterruptedException retry) {
+
+                timedOut = false;
+
+            }
+
+        }
+
+    }
+
+
+```
+
+# 线程池设置多大比较好？
+1.工作-测试环境
+个位数。
+
+生产环境？
+
+# Latch插锁和Barrier栅栏、Selector
+
+
+# 参考
+https://segmentfault.com/a/1190000009489202#articleHeader3
+https://segmentfault.com/a/1190000008693801
+
+https://github.com/diguage/jdk-source-analysis/blob/master/ThreadPoolExecutor.adoc
+https://github.com/c-rainstorm/blog/blob/master/java/ThreadPoolExecutor%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90.md
