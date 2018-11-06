@@ -1,7 +1,7 @@
 ---
 layout:     post
-title:      "B树"
-subtitle:   " \"平衡树\""
+title:      "其他树"
+subtitle:   " \"AVL树、B树、多叉树等\""
 date:       2018-10-06 07:00:00
 author:     "青乡"
 header-img: "img/post-bg-2015.jpg"
