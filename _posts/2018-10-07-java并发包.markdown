@@ -523,7 +523,37 @@ JDK线程池ThreadPoolExecutor使用的是LinkedBlockingQueue，用来放任务�
 
 # 线程池
 
-# 原子操作
+# 并发包-原子赋值
+是什么
+AtomicInteger。
+
+---
+作用
+原子赋值。
+
+1.普通赋值操作  
+是由多条指令完成的，需要读值，然后又要写值，等等。  
+2.原子赋值  
+操作系统级别支持这一的原子指令。
+
+---
+底层实现
+1.compareAndSwap()
+
+2.jvm支持这样的指令
+
+---
+compareAndSwap()和compareAndSet()的区别
+
+---
+代码
+
+---
+应用场景
+
+---
+参考
+
 
 # 总结
 一、同步集合
