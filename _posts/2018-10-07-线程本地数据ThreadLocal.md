@@ -1248,7 +1248,7 @@ struts2框架。
 
 ---
 参考
-《深入剖析struts2原理》-作者陆周
+《深入剖析struts2原理》-作者陆舟
 
 # 参考
 https://www.jianshu.com/p/9c03c85db06e
