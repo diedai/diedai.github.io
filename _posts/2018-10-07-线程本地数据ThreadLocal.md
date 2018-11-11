@@ -379,6 +379,595 @@ public String beginTransaction(MainBusinessActivity businessActivity) {
 	}
 ```
 
+注：写数据和读数据的完整代码。
+```
+
+
+package com.gzh.dpp.dts.manage;
+
+
+
+import java.util.ArrayList;
+
+import java.util.List;
+
+
+
+import org.apache.commons.lang.reflect.MethodUtils;
+
+import org.apache.commons.logging.Log;
+
+import org.apache.commons.logging.LogFactory;
+
+
+
+import com.gzh.commons.serializer.ISerializer;
+
+import com.gzh.commons.serializer.SerializerFactory;
+
+import com.gzh.dpp.dts.enums.ActionStatus;
+
+import com.gzh.dpp.dts.enums.ActivityStatus;
+
+import com.gzh.dpp.dts.enums.HandleFailureMode;
+
+import com.gzh.dpp.dts.model.CurrentSubAction;
+
+import com.gzh.dpp.dts.model.MainBusinessActivity;
+
+import com.gzh.dpp.dts.model.SubBusinessAction;
+
+import com.gzh.dpp.dts.service.IBusinessService;
+
+import com.gzh.commons.context.AppContext;
+
+
+
+public class TransactionManager implements ITransactionManager, IExceptionTransactionService {
+
+	private static Log log = LogFactory.getLog(TransactionManager.class);
+
+	
+
+	private IBusinessService businessService;
+
+	public void setBusinessService(IBusinessService businessService) {
+
+		this.businessService = businessService;
+
+	}	
+
+	
+
+	public String beginTransaction(MainBusinessActivity businessActivity) {		
+
+		try {
+
+			String transactionId = businessService.createBusinessActivity(businessActivity);
+
+			BusinessIDManager.setBusinessId(businessActivity.getTransactionId());
+
+			
+
+			return transactionId;
+
+		} catch(Exception ex) {
+
+			log.error("DTS:begin business transaction exception.", ex);
+
+			return null;
+
+		}		
+
+	}
+
+	
+
+	public boolean endTransaction(String transactionId) {
+
+		BusinessIDManager.remove();	
+
+		
+
+		try {
+
+			return businessService.updateBusinessActivityEnd(transactionId);
+
+		} catch(Exception ex) {
+
+			log.error("DTS:end business transaction exception.", ex);
+
+			return false;
+
+		}		
+
+	}
+
+	
+
+	/**
+
+	 * 取消回滚业务活动
+
+	 * @param transactionId  业务活动唯一标识
+
+	 * @return
+
+	 */
+
+	public boolean rollBackTransaction(String transactionId) {
+
+		log.info("DTS:rollback transaction:"+transactionId);
+
+		
+
+		BusinessIDManager.remove();		
+
+		
+
+		try {
+
+			MainBusinessActivity activity = businessService.getBusinessActivity(transactionId, true);
+
+			log.info(activity.toString());
+
+			
+
+			if(!HandleFailureMode.CANCEL.getMode().equals(activity.getHandleFailure())) {
+
+				log.warn("Handle mode of business failured is not cancel,ID is "+transactionId);
+
+				return false;
+
+			}
+
+			
+
+			//失败回滚分支业务
+
+			for(SubBusinessAction subAction : activity.getActionList()) {
+
+				//查询执行结果
+
+				String serviceName = subAction.getServiceName();
+
+				Object serviceObj = AppContext.getBean(serviceName);
+
+				CurrentSubAction currentAction = (CurrentSubAction)MethodUtils.invokeMethod(serviceObj, "getCurrentAction", new String[] {transactionId, serviceName});
+
+				if(currentAction != null && currentAction.getActionStatus().equals(ActionStatus.CONFIRM.getStatus())) {
+
+					String cancelMethodName = subAction.getMethodName();
+
+					ISerializer serializer = SerializerFactory.getSerializer();
+
+					
+
+					String serializerStr = subAction.getParamsValue();					
+
+					Object paramsValue = serializer.mergeFrom(serializerStr);
+
+					String[] txParams = new String[] {transactionId, serviceName};
+
+					Object resultObj = MethodUtils.invokeMethod(serviceObj, cancelMethodName, new Object[] {paramsValue, txParams});
+
+					log.info(new StringBuilder("rollback transaction[id=").append(transactionId).append(",serviceName=").append(serviceName)
+
+							.append("] execute result is").append(resultObj).toString());
+
+				}					
+
+			}			
+
+			
+
+		} catch(Exception ex) {
+
+			log.error("DTS:rollback transaction["+transactionId+"] exception.", ex);
+
+			return false;
+
+		}
+
+		
+
+		//回滚成功，结束业务活动
+
+		endTransaction(transactionId);
+
+		
+
+		return true;
+
+	}
+
+	
+
+	/**
+
+	 * 重新提交业务活动
+
+	 * @param transactionId
+
+	 * @return
+
+	 */
+
+	public boolean reconfirmTransaction(String transactionId) {
+
+		log.info("DTS:reconfirm transaction:"+transactionId);
+
+		
+
+		try {
+
+			MainBusinessActivity activity = businessService.getBusinessActivity(transactionId, true);
+
+			log.info(activity.toString());
+
+			
+
+			if(!HandleFailureMode.RECONFIRM.getMode().equals(activity.getHandleFailure())) {
+
+				log.warn("Handle mode of business failured is not reconfirm,ID is "+transactionId);
+
+				return false;
+
+			}
+
+			
+
+			//重新提交分支业务
+
+			List<SubBusinessAction> reconfirmList = new ArrayList<SubBusinessAction> ();
+
+			for(SubBusinessAction subAction : activity.getActionList()) {
+
+				//查询执行结果
+
+				String serviceName = subAction.getServiceName();
+
+				Object serviceObj = AppContext.getBean(serviceName);
+
+				CurrentSubAction currentAction = (CurrentSubAction)MethodUtils.invokeMethod(serviceObj, "getCurrentAction", new String[] {transactionId, serviceName});
+
+				if(currentAction == null) {
+
+					reconfirmList.add(subAction);
+
+				}					
+
+			}
+
+			//没有执行成功的分支服务
+
+			if(activity.getActionList().size() == reconfirmList.size()) {
+
+				endTransaction(transactionId);
+
+				return false;
+
+			}
+
+			
+
+			for(SubBusinessAction subAction : reconfirmList) {
+
+				String serviceName = subAction.getServiceName();
+
+				Object serviceObj = AppContext.getBean(serviceName);
+
+				
+
+				String reconfirmMethodName = subAction.getMethodName();
+
+				ISerializer serializer = SerializerFactory.getSerializer();
+
+				
+
+				String serializerStr = subAction.getParamsValue();				
+
+				Object paramsValue = serializer.mergeFrom(serializerStr);
+
+				
+
+				if(BusinessIDManager.getBusinessId() == null) {
+
+					BusinessIDManager.setBusinessId(transactionId);
+
+				} else if(!transactionId.equals(BusinessIDManager.getBusinessId())) {
+
+					log.warn("transactionId:"+transactionId + " ThreadLocal:"+BusinessIDManager.getBusinessId());
+
+					BusinessIDManager.setBusinessId(transactionId);
+
+				}
+
+				
+
+				Object resultObj = MethodUtils.invokeMethod(serviceObj, reconfirmMethodName, paramsValue);
+
+				log.info(new StringBuilder("reconfirm transaction[id=").append(transactionId).append(",serviceName=").append(serviceName)
+
+						.append("] execute result is").append(resultObj).toString());
+
+			}			
+
+			
+
+		} catch(Exception ex) {
+
+			log.error("DTS:reconfirm transaction["+transactionId+"] exception.", ex);			
+
+			
+
+			return false;
+
+		} finally {
+
+			BusinessIDManager.remove();
+
+		}
+
+		
+
+		//重新提交成功，结束业务活动
+
+		endTransaction(transactionId);		
+
+		
+
+		return true;
+
+	}
+
+
+
+	@Override
+
+	public boolean handleExceptionTransaction(String transactionId) {
+
+		log.info("DTS:handle exception transaction:"+transactionId);
+
+		
+
+		try {
+
+			MainBusinessActivity activity = businessService.getBusinessActivity(transactionId, true);
+
+			log.info(activity.toString());
+
+			if(!ActivityStatus.BEGIN.getStatus().equals(activity.getStatus())) {
+
+				log.warn("transaction status is not 'begin':"+transactionId);
+
+				return false;
+
+			}
+
+			
+
+			
+
+			//已执行的分支服务
+
+			List<CurrentSubAction> currentActionList = new ArrayList<CurrentSubAction>();
+
+			//未执行的分支服务
+
+			List<SubBusinessAction> unexecutedActionList = new ArrayList<SubBusinessAction>();
+
+			for(SubBusinessAction subAction : activity.getActionList()) {
+
+				//查询执行结果
+
+				String serviceName = subAction.getServiceName();
+
+				Object serviceObj = AppContext.getBean(serviceName);
+
+				CurrentSubAction currentAction = (CurrentSubAction)MethodUtils.invokeMethod(serviceObj, "getCurrentAction", new String[] {transactionId, serviceName});
+
+				if(currentAction != null) {
+
+					currentActionList.add(currentAction);
+
+				} else {
+
+					unexecutedActionList.add(subAction);
+
+				}
+
+			}
+
+			
+
+			//若无任何分支服务，结束业务活动
+
+			if(currentActionList.size() == 0) {
+
+				return endTransaction(transactionId);
+
+			}
+
+			//若各分支服务都有执行并状态一致，结束业务活动
+
+			if(activity.getActionList().size() == currentActionList.size()) {
+
+				String tmpStatus = null;
+
+				boolean flag = true;
+
+				for(CurrentSubAction currentAction : currentActionList) {
+
+					String status = currentAction.getActionStatus();
+
+					if(tmpStatus !=null && !status.equals(tmpStatus)) {
+
+						flag = false;
+
+						break;
+
+					}
+
+					tmpStatus = status;
+
+				}
+
+				if(flag) {
+
+					return endTransaction(transactionId);
+
+				}
+
+			}
+
+			
+
+			//失败处理方式为CANCEL，依次将状态为CONFIRM的分支服务回滚
+
+			if(HandleFailureMode.CANCEL.getMode().equals(activity.getHandleFailure())) {
+
+				for(CurrentSubAction currentAction : currentActionList) {
+
+					if(currentAction != null && currentAction.getActionStatus().equals(ActionStatus.CONFIRM.getStatus())) {
+
+						String serviceName = currentAction.getServiceName();
+
+						Object serviceObj = AppContext.getBean(serviceName);
+
+						
+
+						SubBusinessAction subAction = getSubActionForList(transactionId, serviceName, activity.getActionList());
+
+						
+
+						String cancelMethodName = subAction.getMethodName();
+
+						ISerializer serializer = SerializerFactory.getSerializer();						
+
+						String serializerStr = subAction.getParamsValue();					
+
+						Object paramsValue = serializer.mergeFrom(serializerStr);
+
+						String[] txParams = new String[] {transactionId, serviceName};
+
+						Object resultObj = MethodUtils.invokeMethod(serviceObj, cancelMethodName, new Object[] {paramsValue, txParams});
+
+						log.info(new StringBuilder("handle rollback transaction[id=").append(transactionId).append(",serviceName=").append(serviceName)
+
+								.append("] execute result is").append(resultObj).toString());						
+
+					}
+
+				}
+
+			}
+
+			
+
+			//失败处理方式为RECONFIRM，依次尝试提交未完成的分支服务
+
+			if(HandleFailureMode.RECONFIRM.getMode().equals(activity.getHandleFailure())) {
+
+				for(SubBusinessAction subAction : unexecutedActionList) {
+
+					String serviceName = subAction.getServiceName();
+
+					Object serviceObj = AppContext.getBean(serviceName);
+
+					
+
+					String reconfirmMethodName = subAction.getMethodName();
+
+					ISerializer serializer = SerializerFactory.getSerializer();
+
+					
+
+					String serializerStr = subAction.getParamsValue();				
+
+					Object paramsValue = serializer.mergeFrom(serializerStr);
+
+					
+
+					if(BusinessIDManager.getBusinessId() == null) {
+
+						BusinessIDManager.setBusinessId(transactionId);
+
+					} else if(!transactionId.equals(BusinessIDManager.getBusinessId())) {
+
+						log.warn("transactionId:"+transactionId + " ThreadLocal:"+BusinessIDManager.getBusinessId());
+
+						BusinessIDManager.setBusinessId(transactionId);
+
+					}
+
+					
+
+					Object resultObj = MethodUtils.invokeMethod(serviceObj, reconfirmMethodName, paramsValue);
+
+					log.info(new StringBuilder("handle reconfirm transaction[id=").append(transactionId).append(",serviceName=").append(serviceName)
+
+							.append("] execute result is").append(resultObj).toString());					
+
+				}
+
+			}			
+
+			
+
+		} catch(Exception ex) {
+
+			log.error("DTS:handel exception transaction["+transactionId+"] exception.", ex);
+
+			
+
+			return false;
+
+		} finally {
+
+			BusinessIDManager.remove();
+
+		}		
+
+		
+
+		return endTransaction(transactionId);
+
+	}
+
+	
+
+	private SubBusinessAction getSubActionForList(String transactionId,String serviceName, List<SubBusinessAction> actionList) {
+
+		for(SubBusinessAction subAction : actionList) {
+
+			if(subAction.getTransactionId().equals(transactionId) && subAction.getServiceName().equals(serviceName)) {
+
+				return subAction;
+
+			}
+
+		}
+
+		
+
+		return null;
+
+	}
+
+	
+
+	
+
+
+
+}
+
+
+
+
+```
+
 #### 电商  
 有2个地方用到了线程本地数据。
 
