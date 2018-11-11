@@ -147,6 +147,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 2》map(ThreadLocal,value) key是ThreadLocal，而ThreadLocal是final，系统全局唯一，即所有线程使用的是同一个key。同一个key，那怎么找到对应线程自己的数据？虽然key是一样的，但是map不一样，这里说的不一样，是说每个线程都有自己的map，每个线程取数据的时候，也是分2步：1.先取自己线程的map 2.再取map的value。所以哪怕key一样，也没有关系。
 
+上面讲的是只有一个线程本地数据的情况下，key其实是一样的，因为是同一个线程本地数据。所有的线程使用的也是同一个线程本地数据。
+
+那么能不能定义多个线程本地数据？可以。如果定义了多个线程本地数据，key又是什么样的？每个线程本地数据都有不同的key，因为现在是多个线程本地数据，所有的线程都可以访问多个线程本地数据，获取的时候，获取到的就是不同的线程本地数据，因为写的时候是根据当前ThreadLocal.set(this,value)写进去的，所以ThreadLocal.get()的时候获取到的就是当前ThreadLocal。
+
 ```
 /**
      * ThreadLocalMap is a customized hash map suitable only for
@@ -239,10 +243,423 @@ import java.util.concurrent.atomic.AtomicInteger;
 ```
 
 # 工作应用
-支付
+#### 支付
+所有的服务/业务，只有1个地方使用到了线程本地数据。
+
+//定义：类-静态数据(线程安全数据)
+```
+
+
+package com.gzh.dpp.dts.manage;
+
+
+
+public class BusinessIDManager {
+
+	
+
+	private static ThreadLocal<String> businessID = new ThreadLocal<String>(); //线程安全数据 //这个数据为什么要线程安全？这个数据是分布式事务的流水id，每个用户的每个请求都是一个单独的线程，所以应该作为线程本地数据。
+
+	
+
+	public static void setBusinessId(String id) {
+
+		businessID.set(id);
+
+	}
+
+	
+
+	public static String getBusinessId() {
+
+		return businessID.get();
+
+	}
+
+	
+
+	public static void remove() {
+
+		businessID.remove();
+
+	}
+
+
+
+}
+
+
+```
+
+//写数据
+```
+public String beginTransaction(MainBusinessActivity businessActivity) {		
+		try {
+			String transactionId = businessService.createBusinessActivity(businessActivity);
+			BusinessIDManager.setBusinessId(businessActivity.getTransactionId()); //写数据
+			
+			return transactionId;
+		} catch(Exception ex) {
+			log.error("DTS:begin business transaction exception.", ex);
+			return null;
+		}		
+	}
+```
+
+//读数据
+```
+/**
+	 * 重新提交业务活动
+	 * @param transactionId
+	 * @return
+	 */
+	public boolean reconfirmTransaction(String transactionId) {
+		log.info("DTS:reconfirm transaction:"+transactionId);
+		
+		try {
+			MainBusinessActivity activity = businessService.getBusinessActivity(transactionId, true);
+			log.info(activity.toString());
+			
+			if(!HandleFailureMode.RECONFIRM.getMode().equals(activity.getHandleFailure())) {
+				log.warn("Handle mode of business failured is not reconfirm,ID is "+transactionId);
+				return false;
+			}
+			
+			//重新提交分支业务
+			List<SubBusinessAction> reconfirmList = new ArrayList<SubBusinessAction> ();
+			for(SubBusinessAction subAction : activity.getActionList()) {
+				//查询执行结果
+				String serviceName = subAction.getServiceName();
+				Object serviceObj = AppContext.getBean(serviceName);
+				CurrentSubAction currentAction = (CurrentSubAction)MethodUtils.invokeMethod(serviceObj, "getCurrentAction", new String[] {transactionId, serviceName});
+				if(currentAction == null) {
+					reconfirmList.add(subAction);
+				}					
+			}
+			//没有执行成功的分支服务
+			if(activity.getActionList().size() == reconfirmList.size()) {
+				endTransaction(transactionId);
+				return false;
+			}
+			
+			for(SubBusinessAction subAction : reconfirmList) {
+				String serviceName = subAction.getServiceName();
+				Object serviceObj = AppContext.getBean(serviceName);
+				
+				String reconfirmMethodName = subAction.getMethodName();
+				ISerializer serializer = SerializerFactory.getSerializer();
+				
+				String serializerStr = subAction.getParamsValue();				
+				Object paramsValue = serializer.mergeFrom(serializerStr);
+				
+				if(BusinessIDManager.getBusinessId() == null) {
+					BusinessIDManager.setBusinessId(transactionId);
+				} else if(!transactionId.equals(BusinessIDManager.getBusinessId())) {
+					log.warn("transactionId:"+transactionId + " ThreadLocal:"+BusinessIDManager.getBusinessId());
+					BusinessIDManager.setBusinessId(transactionId);
+				}
+				
+				Object resultObj = MethodUtils.invokeMethod(serviceObj, reconfirmMethodName, paramsValue);
+				log.info(new StringBuilder("reconfirm transaction[id=").append(transactionId).append(",serviceName=").append(serviceName)
+						.append("] execute result is").append(resultObj).toString());
+			}			
+			
+		} catch(Exception ex) {
+			log.error("DTS:reconfirm transaction["+transactionId+"] exception.", ex);			
+			
+			return false;
+		} finally {
+			BusinessIDManager.remove();
+		}
+		
+		//重新提交成功，结束业务活动
+		endTransaction(transactionId);		
+		
+		return true;
+	}
+```
+
+#### 电商  
+有2个地方用到了线程本地数据。
+
+
+1.Invoke类
+类struts框架，线程本地数据是invoke。  
+invoke作用是，调用过滤器链——》控制器类XXXAction。
 
 ---
-电商
+invoke为什么要线程本地？  
+1）过滤器  
+2）过滤器里的数据invoke
+过滤器是单例，如果里面有数据，则需要使用线程本地数据，避免线程安全问题。
+
+---
+代码
+
+
+//写数据和读数据-过滤器
+```
+package com.bigning.fantastic.filter;
+
+import java.io.IOException;
+import java.util.Date;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.log4j.Logger;
+
+import com.bigning.encrypt.PropertyEncrypter;
+import com.bigning.fantastic.action.ActionInvoker;
+import com.bigning.fantastic.action.ActionMngr;
+import com.bigning.fantastic.action.FantasticActionInvoker;
+import com.bigning.fantastic.action.FantasticForwardController;
+import com.bigning.fantastic.action.LicenseExpiredActionInvoker;
+import com.bigning.fantastic.log.Log4jMngr;
+import com.bigning.util.AppSetting;
+import com.bigning.util.DateFormatFactory;
+/**
+ * Fantastic 控制中心
+ * @author adm
+ *
+ */
+public class FantasticFilter implements Filter{
+	// 许可证格式： loveNicoleForever.yyyy-MM-dd
+	private static Pattern licenseReg=Pattern.compile("^loveNicoleForever\\.(\\d{4}\\-\\d{1,2}-\\d{1,2})$",Pattern.CASE_INSENSITIVE);
+	private static Logger logger;
+	private static final ThreadLocal<ActionInvoker> INVOKER=new ThreadLocal<ActionInvoker>(); //定义线程本地数据
+	ServletContext ctx;
+	ActionInvoker invoker;
+	public void destroy() {
+		ActionMngr.destroy();
+		ctx=null;
+		logger.info(getClass().getName()+" is destroyed");
+	}
+	public void doFilter(ServletRequest arg0, ServletResponse arg1,final FilterChain arg2) throws IOException, ServletException {
+		ActionInvoker inst;
+		synchronized(INVOKER){
+			inst=INVOKER.get(); //如果存在，就直接使用
+			if(inst==null){ //如果不存在，就写数据
+				inst=(ActionInvoker)invoker.clone(); //init方法里：invoker=new FantasticActionInvoker();
+				INVOKER.set(inst); 
+			}
+		}
+		inst.invoke(ctx, (HttpServletRequest)arg0, (HttpServletResponse)arg1,new FantasticForwardController(){
+
+			public void forward(HttpServletRequest request,HttpServletResponse response, String uri) throws IOException, ServletException {
+				logger.info("Filter: Use Default processer for "+uri);
+				arg2.doFilter(request, response);				
+			}
+			});
+		
+	}
+	
+
+	public void init(FilterConfig arg0) throws ServletException {
+		// 初始化日志记录
+		Log4jMngr.init();
+		logger=Logger.getLogger("com.bigning.fantastic.filter.FantasticFilter");
+		ctx=arg0.getServletContext();
+		// 处理许可证
+		String license=AppSetting.get("fantastic.license.key");
+		boolean valid=false;
+		try{
+			PropertyEncrypter encrypter=PropertyEncrypter.getInstance();
+			String desc=encrypter.decrypt(license);
+			Matcher m=licenseReg.matcher(desc);
+			if(m.find()){
+				String dd=m.group(1);
+				Date d=DateFormatFactory.getInstance("yyyy-MM-dd").parse(dd);
+				if(d.after(new Date())){
+					valid=true;
+					logger.info("License will be expired on "+dd);
+				}else{
+					logger.fatal("License is already expired on "+dd);
+				}
+			}
+						
+		}catch(Exception e){
+			logger.error("Cannot restore license key:"+license, e);
+		}
+		// 设置 Invoker
+		if(valid){
+			ActionMngr.init();
+			invoker=new FantasticActionInvoker(); 
+		}else{
+			invoker=new LicenseExpiredActionInvoker();
+		}
+		// 清除登录记录
+		logger.info(getClass().getName()+" is initialized.");
+	}
+
+}
+
+
+```
+
+
+
+
+
+
+2.作用域对象  
+为什么要线程本地？  
+1.请求  
+2.响应  
+3.上下文  
+
+为了在控制器类之外的类，比如service和util类里面访问servlet作用域对象，就定义了类.静态数据，以方便在任何地方都可以访问静态类的数据。静态类包含了线程本地数据，线程本地数据封装了上面的3个对象。静态类的数据为什么要是线程本地数据？因为作用域对象是属于当前请求的，每次请求都会分配一个新的线程，所以作用域对象数据要弄成线程本地数据。
+
+在哪里写？invoke的时候写数据。  
+在哪里读？service和util的时候，读数据。
+
+除了这种方式，还有其他方法写读作用域对象吗？有。而且一般的MVC框架，比如struts，还有电商项目自己实现的框架-类struts，都是这么实现的：1.BaseAction：封装了作用域对象 2.业务Action继承BaseAction，就可以在控制器Action里访问作用域对象了。
+
+如果想要在service和util类访问作用域对象，可以把数据作为参数传过去，不过这样就是有点麻烦，每次需要传参，而且方法的定义也多了一个参数。
+
+如果是线程本地数据的这种解决方法，那么不管在任何地方，直接使用就可以了，类.静态数据-线程本地数据.作用域对象。
+
+---
+代码
+//线程本地数据定义的地方
+```
+package com.bigning.fantastic.action;
+
+import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+public class FantasticAppContext {
+	final static ThreadLocal<FantasticContext> session=new ThreadLocal<FantasticContext>(); //线程本地数据，它封装了servlet作用域对象
+	
+	static void set(FantasticContext ctx){
+		session.set(ctx);
+	}
+	public static void set(ServletContext sc, HttpServletRequest request, HttpServletResponse response){
+		set(new FantasticContext(sc,request,response));
+	}
+	public static HttpServletRequest getRequest(){
+		return session.get().request;
+	}
+	public static HttpServletResponse getResponse(){
+		return session.get().response;
+	}
+	public static ServletContext getServletContext(){
+		return session.get().sc;
+	}
+	public static void remove(){
+		session.remove();
+	}
+}
+```
+
+//线程本地数据类
+```
+package com.bigning.fantastic.action;
+
+import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+public class FantasticContext {
+	final ServletContext sc;
+	final HttpServletRequest request;
+	final HttpServletResponse response;
+	FantasticContext(ServletContext sc, HttpServletRequest request, HttpServletResponse response){
+		this.sc=sc;
+		this.request=request;
+		this.response=response;
+	}
+	public ServletContext getServletContext() {
+		return sc;
+	}
+	public HttpServletRequest getRequest() {
+		return request;
+	}
+	public HttpServletResponse getResponse() {
+		return response;
+	}
+	
+}
+
+```
+
+//写数据-FantasticActionInvoker
+```
+private void invoke()throws IOException,ServletException{
+		if(filtered()){
+			return;
+		}
+		request.setCharacterEncoding("UTF-8");
+		response.setCharacterEncoding("UTF-8");
+		HttpServletRequest req=null;
+		try{
+			req=processMultipart(request);
+		}catch(Exception e){
+			throw new ServletException("Error in processing Multipart form data for "+request.getRequestURI(),e);
+		}
+		try{
+			FantasticAppContext.set(ctx, req, response); //每次请求每次都有一个线程，每次都要到这里写数据
+			invokeImpl(req);
+		}
+		finally{
+			FantasticAppContext.remove();
+		}
+```
+
+
+//读数据-service类
+```
+package com.ppet.ord.intf.impl;
+
+import javax.servlet.http.HttpServletRequest;
+
+import com.bigning.fantastic.action.FantasticAppContext;
+import com.ppet.attachment.Attached;
+import com.ppet.attachment.AttachmentUtil;
+import com.ppet.ord.AbstractOrderService;
+import com.ppet.ord.SalesOrder;
+import com.ppet.ord.intf.IOrderService;
+import com.ppet.ord.so.AttachmentUploadForm;
+
+public class UploadAttachmentService  extends AbstractOrderService implements IOrderService<AttachmentUploadForm>{
+
+	public void service(SalesOrder var, AttachmentUploadForm model, HttpServletRequest request) throws Exception {
+		Boolean updated=Boolean.FALSE;
+		if( model.getAttachment() != null ){
+			Attached []files={
+				new Attached(model.getAttachment(), model.getAttachmentFilename())
+			};
+			String path=AttachmentUtil.getUploadPath(var.getCustCode())+var.getOrderNo()+"/";
+			AttachmentUtil.store(FantasticAppContext.getServletContext(), var, files, path, null); //读作用域对象
+			updated=Boolean.TRUE;
+		}
+		request.setAttribute("FLAG", updated);
+		request.setAttribute("form", var);
+	}
+
+}
+
+```
+
+
+# 开源项目
+struts2框架。
+
+和电商项目自己实现的MVC框架差不多。
+
+---
+参考
+《深入剖析struts2原理》-作者陆周
 
 # 参考
 https://www.jianshu.com/p/9c03c85db06e
