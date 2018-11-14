@@ -1,3 +1,17 @@
+---
+layout:     post
+title:      "数据库之事务之间的隔离"
+subtitle:   " \"隔离级别\""
+date:       2018-10-21 07:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - database
+    - transaction
+    - transaction isolation
+---
+
 # 数据库的并发和事务
 **Two-phase locking** is the most common transaction concurrency control method in DBMSs, used to provide both serializability and recoverability for correctness. In order to **access a database object** a transaction first needs to **acquire a lock for this object**. Depending on the **access operation type** (e.g., reading or writing an object) and on the lock type, acquiring the lock may be blocked and postponed, if another transaction is holding a lock for that object.
 
