@@ -1,0 +1,425 @@
+---
+layout:     post
+title:      "spring事务"
+subtitle:   " \"怎么配置、有哪几种配置方法\""
+date:       2018-10-22 06:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - spring transaction
+    - spring
+---
+
+# 总结
+#### 怎么配置事务
+步骤  
+1.配置事务  
+使用哪一种数据源/连接池、使用哪一种事务管理器、注解哪些类的哪些方法等等。  
+2.sql映射  
+比如，ibatis sql映射。
+
+#### 配置事务有哪几种方法
+1.编程式  
+所谓编程式，就是写死在代码里。这个写死在代码里，不是指配置文件代码和注解代码，而是类.方法() 这样的代码。
+
+2.声明式  
+分2种，  
+1）基于配置文件  
+优点，松耦合。  
+缺点，配置文件太多，不好找。  
+2）基于注解 //推荐使用  
+优点，注解和代码在一块，方便找。  
+缺点，和代码耦合得比较紧。  
+
+这篇文章主要是讲了这2个问题。细节见下文。
+
+# common配置文件
+#### 事务配置
+//数据源
+```
+<bean id="memDataSource" class="com.alibaba.druid.pool.DruidDataSource" //阿里的数据源/连接池框架
+
+		init-method="init" destroy-method="close">
+
+		<property name="driverClassName" value="${db.jdbc.mem.driverClass}" />
+
+		<property name="url" value="${db.jdbc.mem.jdbcUrl}" />
+
+		<property name="username" value="${db.jdbc.mem.username}" />		
+
+		<property name="connectProperties">
+
+			<props>
+
+				<prop key="password">${db.jdbc.mem.password}</prop>
+
+				<prop key="oracle.net.CONNECT_TIMEOUT">10000</prop>
+
+				<prop key="oracle.net.READ_TIMEOUT">60000</prop>
+
+				<prop key="oracle.jdbc.ReadTimeout">60000</prop> 
+
+			</props>
+
+		</property>
+
+		<property name="passwordCallback">
+
+			<bean class="com.gzh.commons.callback.DBPasswordCallback" >
+
+				<property name="encrypt">
+
+					<ref bean="encryptMem" />
+
+				</property>
+
+			</bean>
+
+		</property>
+
+		<property name="filters" value="log4j" />
+
+        <property name="proxyFilters">
+
+            <list>
+
+              <ref bean="stat-filter-mem" />
+
+            </list>
+
+        </property>
+
+		<property name="initialSize" value="${db.jdbc.mem.pool.initialSize}" />
+
+		<property name="minIdle" value="${db.jdbc.mem.pool.minIdle}" />
+
+		<property name="maxActive" value="${db.jdbc.mem.pool.maxActive}" />
+
+		<property name="maxWait" value="60000" />
+
+		<property name="timeBetweenEvictionRunsMillis" value="180000" />
+
+		<property name="minEvictableIdleTimeMillis" value="600000" />
+
+		<property name="validationQuery" value="SELECT 'x' from dual" />
+
+		<property name="testWhileIdle" value="${db.jdbc.mem.pool.testWhileIdle}" />
+
+		<property name="testOnBorrow" value="${db.jdbc.mem.pool.testOnBorrow}" />
+
+		<property name="testOnReturn" value="false" />
+
+		<property name="poolPreparedStatements" value="true" />
+
+		<property name="maxPoolPreparedStatementPerConnectionSize" value="${db.jdbc.mem.pool.maxPoolPreparedStatement}" />
+
+	</bean>
+
+
+
+
+```
+
+//事务管理器
+```
+<bean id="memtransactionManager"
+
+		class="org.springframework.jdbc.datasource.DataSourceTransactionManager"> //数据源事务管理器 //除了数据源事务管理器，还有hibernate(第三方开源持久层)、jpa(j2ee官方持久层)
+
+		<property name="dataSource">
+
+			<ref local="memDataSource" />
+
+		</property>
+
+	</bean>
+
+```
+
+---
+有哪些事务管理器？
+```
+org.springframework.transaction
+Interface PlatformTransactionManager
+
+All Known Subinterfaces:
+CallbackPreferringPlatformTransactionManager, ResourceTransactionManager
+
+All Known Implementing Classes:
+AbstractPlatformTransactionManager, CciLocalTransactionManager, DataSourceTransactionManager, HibernateTransactionManager, JmsTransactionManager, JpaTransactionManager, JtaTransactionManager, WebLogicJtaTransactionManager, WebSphereUowTransactionManager
+```
+
+
+---
+directly or indirectly using a persistence API such as JDBC(ibatis也是基于jdbc), Hibernate(基于session，封装了sql), or JDO
+
+
+
+
+Unlike EJB CMT, which is tied to JTA, the Spring Framework’s declarative transaction management works in any environment. It can work with JTA transactions or local transactions using JDBC, JPA(j2ee官方规范), Hibernate or JDO by simply adjusting the configuration files.
+
+
+
+
+
+//哪些方法使用事务
+
+
+
+```
+
+	<tx:advice id="memTtxAdvice" transaction-manager="memtransactionManager">
+
+		<tx:attributes>
+
+			<tx:method name="save*" propagation="REQUIRED" rollback-for="com.gzh.commons.exception.BaseRuntimeException" /> //这些方法是事务方法
+
+			<tx:method name="add*" propagation="REQUIRED" rollback-for="com.gzh.commons.exception.BaseRuntimeException" />
+
+			<tx:method name="insert*" propagation="REQUIRED" rollback-for="com.gzh.commons.exception.BaseRuntimeException" />
+
+			<tx:method name="del*" propagation="REQUIRED" rollback-for="com.gzh.commons.exception.BaseRuntimeException" />
+
+			<tx:method name="remove*" propagation="REQUIRED" rollback-for="com.gzh.commons.exception.BaseRuntimeException" />
+
+			<tx:method name="update*" propagation="REQUIRED" rollback-for="com.gzh.commons.exception.BaseRuntimeException" />
+
+		    <tx:method name="*" propagation="SUPPORTS" read-only="true"/>
+
+		</tx:attributes>
+
+	</tx:advice>
+
+```
+
+
+
+总结
+
+哪些方法使用事务？
+
+有2种方法，
+
+1.配置文件
+
+优点，使用正则表达式匹配方法名字，方便快捷，只需要配置一次，统一管理。
+
+2.注解
+
+优点，针对单个方法比较灵活。
+
+缺点，每个都要单独配置，麻烦。
+
+
+
+//哪些类使用事务
+
+
+
+```
+
+
+<aop:config>
+
+		<aop:pointcut id="memServicePointcut" expression="execution(* com.gzh.dpp.ms.service.member..*.*(..))" /> //业务包下面的类都是事务方法（具体是哪些方法，见上面）
+
+		<aop:advisor advice-ref="memTtxAdvice" pointcut-ref="memServicePointcut" />
+
+	</aop:config>
+
+```
+
+
+
+
+
+#### sql语句配置
+
+//sql映射配置
+
+```
+
+
+<bean id="memSqlMapClient" class="org.springframework.orm.ibatis.SqlMapClientFactoryBean"> //spring集成了ibatis
+
+		<property name="configLocation">
+
+			<value>classpath:mem_SqlMapConfig.xml</value>
+
+		</property>
+
+		<property name="dataSource">
+
+			<ref bean="memDataSource" />
+
+		</property>
+
+	</bean>
+
+```
+
+
+
+//dao的实现类
+
+```
+
+<bean id="memiGenericDao" class="com.gzh.orm.dao.ibatis.GenericDaoIbatisImpl"	init-method="initialize">
+
+		<property name="sqlMapClient">
+
+			<ref bean="memSqlMapClient" />
+
+		</property>
+
+		<property name="sqlExecutor">
+
+			<ref bean="memsqlExecutor" />
+
+		</property>
+
+	</bean>
+
+
+```
+
+
+//sql执行器
+
+```
+
+
+<bean id="memsqlExecutor" class="com.gzh.orm.dao.ibatis.executor.LimitSqlExecutor">
+
+		<property name="dialect" ref="memOracleDialect" />
+
+		<property name="enableLimit" value="true"></property>
+
+	</bean>
+
+
+```
+
+
+
+//数据库厂商方言
+
+```
+
+
+<bean id="memOracleDialect" class="com.gzh.orm.dao.ibatis.dialect.impl.OracleDialect">
+
+	</bean>
+
+
+```
+
+
+
+
+
+---
+
+service bean.xml
+
+
+
+```
+
+
+ <!-- 绑卡信息 -->
+
+    <bean id="merchantBankCardBindService" class="com.gzh.dpp.ms.service.member.merchant.impl.MerchantBankCardBindServiceImpl">
+
+		<property name="iGenericDao">
+
+			<ref bean="memiGenericDao"/> //dao的实现类
+
+		</property>
+
+	</bean>
+
+
+```
+
+
+
+
+
+# 怎么回滚
+
+实现思想
+
+只需要注意一点，就是回滚的时机是什么。回滚的时机是，当程序报错的时候，即捕获到异常的时候，这个时候就可以回滚了。
+
+
+
+报错时，发送报错日志到邮箱，也是这个机制。
+
+
+
+---
+
+具体怎么配置
+
+配置文件配置即可。具体是给回滚属性配置一个异常类。
+
+
+
+
+
+
+
+# 基于注解
+
+
+
+
+
+```
+
+<!-- from the file 'context.xml' -->
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:aop="http://www.springframework.org/schema/aop"
+    xmlns:tx="http://www.springframework.org/schema/tx"
+    xsi:schemaLocation="
+        http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/tx
+        http://www.springframework.org/schema/tx/spring-tx.xsd
+        http://www.springframework.org/schema/aop
+        http://www.springframework.org/schema/aop/spring-aop.xsd">
+
+    <!-- this is the service object that we want to make transactional -->
+    <bean id="fooService" class="x.y.service.DefaultFooService"/>
+
+    //启用基于注解配置
+    <!-- enable the configuration of transactional behavior based on annotations -->
+    <tx:annotation-driven transaction-manager="txManager"/><!-- a PlatformTransactionManager is still required -->
+    
+    <bean id="txManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager"> //事务管理器
+        <!-- (this dependency is defined somewhere else) -->
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+    <!-- other <bean/> definitions here -->
+
+</beans>
+
+
+```
+
+
+# 参考
+spring官方文档-transaction章节。
+
+
+
+
+
+
+
+
