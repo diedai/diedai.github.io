@@ -143,6 +143,9 @@ In the SERIALIZABLE isolation mode, Query 1 would result in all records with age
 先理解读数据的几种问题，再理解如何解决这几种问题，就基本上理解了事务隔离和事务隔离级别。
 
 # 数据库厂商是怎么实现事务的？
+1.事务日志  
+2.依靠事务日志，记录每一步/每个sql的成功失败状态等信息，从而实现提交和回滚功能。
+
 https://docs.oracle.com/cd/E17984_01/doc.898/e14706/transaction_processing.htm
 https://docs.oracle.com/cd/E17984_01/doc.898/e14706/toc.htm
 
