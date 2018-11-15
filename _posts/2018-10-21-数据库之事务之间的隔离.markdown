@@ -150,6 +150,8 @@ https://www.jianshu.com/p/2af078f4cc5d
 https://www.jianshu.com/p/d75ecc545fda  
 https://amao12580.github.io/post/2016/06/What-is-a-transaction/
 
+https://docs.oracle.com/cd/E19957-01/819-1553/transactions.html
+
 
 # 数据库厂商是怎么实现事务隔离的
 #### mysql
