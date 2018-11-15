@@ -1,0 +1,66 @@
+---
+layout:     post
+title:      "分布式事务"
+subtitle:   " \"怎么配置、有哪几种配置方法\""
+date:       2018-10-22 06:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - transaction
+    - distributed transaction
+---
+
+# 什么是分布式事务
+一个事务方法，包含了多个sql，每个sql访问的数据库不同，即一个事务方法访问了多个数据库，所谓分布式，就是数据库的分布式/集群，因为有多个才会导致分布式的问题。
+
+为什么多个数据库就会导致分布式事务的问题呢？因为数据库的事务只支持单机，即单个数据库。在单个数据库里，一个事务方法的多个sql，要么全部提交，要么全部不提交，这就是单机数据库事务。而在多个数据库里，就不支持事务，因为不同数据库的事务没有任何关系。这个时候只能在应用程序/代码层面来实现和确保事务功能。
+
+# 协议
+两阶段提交协议。
+
+# 规范
+分布式事务有个专门的规范组织，就是XA组织。https://zh.wikipedia.org/wiki/X/Open_XA
+
+既然是一种规范，自然有的解决方案和实现遵守规范，有的解决方案不遵守规范。https://www.javaworld.com/article/2077963/open-source-tools/distributed-transactions-in-spring--with-and-without-xa.html
+
+
+
+# 解决方案
+基于两阶段提交协议的解决方案。  
+1.try  
+2.confirm  
+3.cancel  
+
+基于单机数据库的事务。
+
+https://juejin.im/post/5aa3c7736fb9a028bb189bca#heading-10
+
+# java事务
+j2ee事务。
+
+# spring分布式事务
+spring本身是不支持分布式事务的，因为支持和不支持事务，不是由应用层说了算，而是由数据库层说了算，数据库厂商不支持，那么应用层也不支持，只能想一些方法去解决这个问题，而且还不一定解决的好。也就是说，应用层面的解决方案的成功率并不是100%成功，而是尽量提高分布式事务的成功概率。
+
+spring文档也没有分布式事务的内容。https://docs.spring.io/spring/docs/4.2.x/spring-framework-reference/html/index.html
+
+#### spring boot分布式事务
+spring boot本身只是对spring MVC和spring的一个整合，所以事务和分布式事务，与spring是一致的。
+https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-jta.html
+
+
+# hibernate事务
+https://docs.jboss.org/hibernate/orm/3.3/reference/en/html/transactions.html
+
+# ibatis事务
+https://ibatis.apache.org/docs/java/pdf/
+
+# 参考
+https://my.oschina.net/pingpangkuangmo/blog/413518
+
+https://www.javaworld.com/article/2077963/open-source-tools/distributed-transactions-in-spring--with-and-without-xa.html?page=3
+
+https://docs.oracle.com/javaee/6/tutorial/doc/bncih.html
+
+https://www.infoq.com/minibooks/JTDS
+
