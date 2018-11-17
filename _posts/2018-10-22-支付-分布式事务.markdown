@@ -1,0 +1,2103 @@
+---
+layout:     post
+title:      "支付-分布式事务"
+subtitle:   " \"分布式事务在支付系统里的应用\""
+date:       2018-10-22 06:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - transaction
+    - distributed transaction
+    - payment
+---
+
+
+# 背景
+有哪些业务？在一个事务方法里，有哪些业务？
+主要包含2个库的业务，
+1.订单库
+订单状态
+
+2.账户库
+金额
+
+# 步骤
+#### 开始事务
+为什么要开始？开始事务都做了什么工作？
+
+---
+代码
+```
+//创建支付成功业务
+
+		log.info("OrderManageServiceImpl paySuccConfirm to asynAccountReq INVO is param:"+asynAccountReq);
+
+		MainBusinessActivity mainActivity = BusinessServiceUtils.createPaySuccessBusiness(asynAccountReq);
+
+		if (mainActivity == null) {
+
+			paySuccResponse.setRetCode(OrderServiceErrorCode.ORDERSERVICE_SERIALIZE_FAILURE.getCode());
+
+			paySuccResponse.setRetMsg(OrderServiceErrorCode.ORDERSERVICE_SERIALIZE_FAILURE.getDesc());
+
+			log.info("End method : paySuccConfirm, paySuccResponse : " + paySuccResponse);
+
+			return paySuccResponse;
+
+		}
+
+		//三开启分布式事务
+
+		log.info("OrderManageServiceImpl paySuccConfirm to mainActivity INVO is param:"+mainActivity);
+
+		String transactionId = iTransactionManager.beginTransaction(mainActivity);
+
+		if (transactionId == null) {
+
+			paySuccResponse.setRetCode(OrderServiceErrorCode.CREATE_MAIN_BUSINESS_FAILURE.getCode());
+
+			paySuccResponse.setRetMsg(OrderServiceErrorCode.CREATE_MAIN_BUSINESS_FAILURE.getDesc());
+
+			log.info("End method : paySuccConfirm, paySuccResponse : " + paySuccResponse);
+
+			return paySuccResponse;
+
+		}
+
+
+```
+```
+//创建支付成功主业务活动
+
+	public static MainBusinessActivity createPaySuccessBusiness(AsynChargeAccountRequest asynAccountReq) {
+
+		MainBusinessActivity business = new MainBusinessActivity();
+
+		String transactionId = UUID.randomUUID().toString();
+
+		business.setTransactionId(transactionId);
+
+		business.setActionCount(2); //子活动数量2个：1.更新订单库的订单状态 2.更新账户库的账户金额
+
+		business.setHandleFailure(HandleFailureMode.RECONFIRM.getMode());		
+
+		
+
+		//创建分支原子活动记录
+
+		List<SubBusinessAction> actionList = new ArrayList<SubBusinessAction>();
+
+		ISerializer serializer = SerializerFactory.getSerializer();
+
+		
+
+		//插入保证金分支服务及更新支付状态业务
+
+		SubBusinessAction paySuccessAction = new SubBusinessAction();
+
+		paySuccessAction.setServiceName("iOrderServer");
+
+		paySuccessAction.setMethodName("insertDepositAndUpdateOrder");			
+
+		actionList.add(paySuccessAction);
+
+		
+
+		//异步记账业务
+
+		SubBusinessAction accountAction = new SubBusinessAction();
+
+		accountAction.setServiceName(ACCOUNT_SERVICE_NAME);
+
+		accountAction.setMethodName(ASYNACCOUNT_METHOD_NAME);
+
+		String accountValue = serializer.toJSONString(asynAccountReq); //service类的方法的参数 //问题：为什么订单库的参数数据没有保存下来？
+
+		if(accountValue == null) {
+
+			return null;
+
+		}
+
+		accountAction.setParamsValue(accountValue);
+
+		actionList.add(accountAction);
+
+		
+
+		business.setActionList(actionList);
+
+		
+
+		return business;
+
+	}
+
+
+```
+
+```
+public String beginTransaction(MainBusinessActivity businessActivity) {		
+
+		try {
+
+			String transactionId = businessService.createBusinessActivity(businessActivity); //主活动和子活动2张表分别插入数据
+
+			BusinessIDManager.setBusinessId(businessActivity.getTransactionId());
+
+			
+
+			return transactionId;
+
+		} catch(Exception ex) {
+
+			log.error("DTS:begin business transaction exception.", ex);
+
+			return null;
+
+		}		
+
+	}
+
+
+```
+
+```
+public String createBusinessActivity(MainBusinessActivity businessActivity) {
+
+		String transactionId = ObjectId.get().toString();
+
+		businessActivity.setTransactionId(transactionId);
+
+		businessActivity.setStatus(ActivityStatus.BEGIN.getStatus());
+
+		List<SubBusinessAction> actionList = businessActivity.getActionList();
+
+		try {
+
+			dao.save("addBusinessActivity", businessActivity);
+
+			for(SubBusinessAction action: actionList) {
+
+				action.setTransactionId(businessActivity.getTransactionId());
+
+				action.setActionId(ObjectId.get().toString());
+
+				dao.save("addBusinessAction", action);
+
+			}
+
+		} catch(Exception ex) {
+
+			log.error("DTS:create business activity exception.", ex);
+
+			throw new BaseRuntimeException(ex);
+
+		}		
+
+		
+
+		return businessActivity.getTransactionId();
+
+	}
+
+
+```
+
+#### 子活动
+一个sql就是一个子活动。
+
+1.更新订单状态
+```
+//六记录支付成功时间，更新交易支付状态为支付成功，如果保证金不为空，插入保证金记录
+
+		try {
+
+			iOrderServer.insertDepositAndUpdateOrder(paySuccessOrder,orderConfirmRequest.getOrderDCard()); //子活动：更新订单状态
+
+		} catch (Exception ex) {
+
+			log.error("order paySuccess handle exception ", ex);
+
+			//分布式结束
+
+			iTransactionManager.endTransaction(transactionId); //如果异常，则结束事务
+
+			
+
+			paySuccResponse.setRetCode(OrderServiceErrorCode.PAY_SUCCESS_FAILURE.getCode());
+
+			paySuccResponse.setRetMsg(OrderServiceErrorCode.PAY_SUCCESS_FAILURE.getDesc());
+
+			log.info("End method : paySuccConfirm, paySuccResponse : " + paySuccResponse);
+
+			return paySuccResponse;
+
+		}
+
+
+```
+
+```
+@CurrentAction(serviceName = "iOrderServer", operation = "create")
+
+	public int insertDepositAndUpdateOrder(Order paySuccessOrder, OrderDCard orderDCard) {
+
+		try {
+
+			// 更新直连建行付款人账户验证状态
+
+			/*
+
+			 * 20140211 付款人账户姓名、卡号、身份证号全不为空银行才会校验
+
+			 */
+
+			log.info("insertDepositAndUpdateOrder orderID:" + paySuccessOrder.getOrderId());
+
+			if (("1003".equals(paySuccessOrder.getPayChannelId()) || "2160".equals(paySuccessOrder.getPayChannelId()))
+
+					&& StringUtils.isNotBlank(paySuccessOrder.getOrderAttachedInfo().getCustomerName()) && StringUtils.isNotBlank(paySuccessOrder.getOrderAttachedInfo().getCustomerCardNo())
+
+					&& StringUtils.isNotBlank(paySuccessOrder.getOrderAttachedInfo().getCustomerIdNumber())) {
+
+				dao.update("updateVerification", paySuccessOrder);
+
+			}
+
+
+
+			if (paySuccessOrder.getDeposit() != null && paySuccessOrder.getDeposit().doubleValue() >= 0.01) {
+
+				log.info("insert_order_deposit id=" + paySuccessOrder.getOrderDeposit().getOrderId() + " amount=" + paySuccessOrder.getOrderDeposit().getAmount());
+
+				dao.save("insert_order_deposit", paySuccessOrder.getOrderDeposit());
+
+			}
+
+
+
+			// 插入订单结算表
+
+			dao.save("insert_order_settle_info", paySuccessOrder);
+
+
+
+			// 需要拆分的订单，记录订单至t_order_split表，并开启线程，拆分订单
+
+			if (OrderSplitStatus.ORDER_NO_SPLIT.getCode().equals(paySuccessOrder.getSplitStatus()) && FileChangedReloading.containsKey(paySuccessOrder.getMerchantId())) {
+
+				OrderSplitRecord orderSplit = new OrderSplitRecord();
+
+				orderSplit.setCreateDate(new Date());
+
+				orderSplit.setOrderId(paySuccessOrder.getOrderId());
+
+				orderSplit.setSplitStatus(OrderSplitStatus.ORDER_NO_SPLIT.getCode());
+
+				dao.save(orderSplit);
+
+			}else if("1".equals(paySuccessOrder.getCrossBorderFlag())|| "4".equals(paySuccessOrder.getCrossBorderFlag())) {//modify 新增批量跨境
+
+				//如果是跨境外汇，需要保存记录至t_order_exchange(父订单不记录)
+
+				OrderExchange orderExchange = new OrderExchange();
+
+				orderExchange.setOrderId(paySuccessOrder.getOrderId());
+
+				orderExchange.setMerchantId(paySuccessOrder.getMerchantId());
+
+				orderExchange.setPayDate(paySuccessOrder.getPayDate());
+
+				orderExchange.setOrderMoney(paySuccessOrder.getTxMoney());
+
+				orderExchange.setCharges(paySuccessOrder.getCharges());
+
+				orderExchange.setSellCurrency("CNY");
+
+				orderExchange.setSellAmount(paySuccessOrder.getTxMoney().subtract(paySuccessOrder.getCharges()));
+
+				orderExchange.setExchangeType("1");
+
+				orderExchange.setExchangeStatus(ExchangeStatus.APPLY.getState());
+
+				orderExchange.setGoodsName(paySuccessOrder.getOrderAttachedInfo().getGoodsName());
+
+				orderExchange.setCustomerType("0");
+
+				orderExchange.setCustomerName(paySuccessOrder.getOrderAttachedInfo().getCustomerName());
+
+				orderExchange.setCustomerIdcard(paySuccessOrder.getOrderAttachedInfo().getCustomerIdNumber());
+
+				if("4".equals(paySuccessOrder.getCrossBorderFlag())){//modify zj 新增批量跨境
+
+					String settleAccountId = findSettleAccountId(paySuccessOrder.getMerchantId(),paySuccessOrder.getMerchantOrderId());
+
+					if(!StringUtils.isBlank(settleAccountId)){
+
+						orderExchange.setSettleAccountId(settleAccountId);//商家结算账户
+
+					}
+
+				}
+
+				dao.save("insertOrderExchange",orderExchange);
+
+			}
+
+			
+
+			// 点卡支付修改点卡订单状态、增加需转账智汇宝记录
+
+			if (paySuccessOrder.getGatewayId().equals("23")) {
+
+				// 将点卡抽取出来
+
+				return dCardPayHandle(paySuccessOrder, orderDCard);
+
+			}
+
+
+
+			int updateFlag = dao.update("updateOrderStatusAndPaydateAndCharge", paySuccessOrder);
+
+			if (updateFlag != 1) {
+
+				throw new BaseRuntimeException("orderService update order paySuccess failure");
+
+			}
+
+			return updateFlag;
+
+
+
+		} catch (Exception e) {
+
+			log.error("insertDepositAndUpdateOrder error", e);
+
+			throw new BaseRuntimeException("insertDepositAndUpdateOrder error", e);
+
+		}
+
+	}
+
+
+```
+
+2.更新账户金额
+```
+//七 记账
+
+		try {
+
+			accountServiceInner.asynChargeAccount(asynAccountReq); //插入一条订单流水到订单缓存表
+
+		} catch (Exception e) {
+
+			log.error("account handle exception,now reconfirm transaction. account handle exception msg is:", e);
+
+			
+
+			// 重新提交业务
+
+			boolean reconfirmFlag = iTransactionManager.reconfirmTransaction(transactionId);
+
+			log.info("reconfirm transaction flag:" + reconfirmFlag); 
+
+			notifyOrderSuccess(paySuccResponse, paySuccessOrder, true, true);
+
+			log.info("End method : paySuccConfirm, paySuccResponse : " + paySuccResponse);
+
+			return paySuccResponse;
+
+			
+
+		}
+
+
+```
+
+```
+// 异步记账
+
+	@Override
+
+	@CurrentAction(serviceName = "accountServiceImplCSPAccountService", operation = "create")
+
+	public void asynChargeAccount(AsynChargeAccountRequest asynChargeAccountRequest) {
+
+		log.info("Begin method: asynChargeAccount, parameter : " + asynChargeAccountRequest);
+
+		
+
+		checkAsynAccountRequestParams(asynChargeAccountRequest);
+
+		
+
+		accountDao.addPaylineCache(asynChargeAccountRequest);
+
+		
+
+		log.info("End method:asynChargeAccount");
+
+	}
+
+
+
+<!-- 向缓存表插入一条订单记录 -->
+
+	<insert id="addPaylineCache" parameterClass="AsynChargeAccountRequest" >
+
+		insert into T_ACCOUNT_PAYLINECACHE2 (ORDER_ID, MERCHANT_ID, TRADE_AMOUNT, CHARGES, DEPOSIT, TRADE_DATE, STATUS, ORDER_TYPE) 
+
+		values (#orderId#, #merchantId#, #tradeAmount#, #charges#, #deposit#, sysdate, '0',#orderType#)
+
+	</insert>
+
+
+```
+
+
+#### 结束事务
+为什么要结束？结束事务都做了什么工作？
+
+---
+代码
+```
+public boolean endTransaction(String transactionId) {
+
+		BusinessIDManager.remove();	
+
+		
+
+		try {
+
+			return businessService.updateBusinessActivityEnd(transactionId); //更新主活动状态
+
+		} catch(Exception ex) {
+
+			log.error("DTS:end business transaction exception.", ex);
+
+			return false;
+
+		}		
+
+	}
+
+
+```
+
+```
+public boolean updateBusinessActivityEnd(String transactionId) {		
+
+		
+
+		Map<String, Object> paramsMap = new HashMap<String, Object>();
+
+		paramsMap.put("transactionId", transactionId);
+
+		paramsMap.put("status", ActivityStatus.END.getStatus());
+
+		paramsMap.put("originalStatus", ActivityStatus.BEGIN.getStatus());
+
+		try {
+
+			int result = dao.update("updateBusinessStatus", paramsMap);
+
+			if(result >0) {
+
+				return true;
+
+			} else {
+
+				//主业务活动已被更新过，不该发生这种异常，需要手动处理！
+
+				log.error("DTSEXCEPTION:business activity["+transactionId+"] updated,please manual handling!");
+
+				Map<String, Object> excMap = new HashMap<String, Object>();
+
+				excMap.put("transactionId", transactionId);
+
+				excMap.put("status", ActivityStatus.EXCEPTION.getStatus());
+
+				excMap.put("originalStatus", ActivityStatus.END.getStatus());
+
+				int excResult = dao.update("updateBusinessStatus", excMap);
+
+				log.warn(new StringBuilder("DTSEXCEPTION:update business activity[").append(transactionId).append("] result:").append(excResult).toString());
+
+				
+
+				return false;
+
+			}
+
+			
+
+		} catch(Exception ex) {
+
+			log.error("DTS:end business activity exception.", ex);
+
+			throw new BaseRuntimeException(ex);
+
+		}		
+
+	}
+
+
+
+<update id="updateBusinessStatus" parameterClass="java.util.Map">
+
+		update T_MAIN_BUSINESS_ACTIVITY set status = #status# where transaction_id=#transactionId# and status = #originalStatus#
+
+	</update>
+
+
+```
+
+
+#### 重复确认事务
+什么时候需要重复确认事务？为什么要重复确认事务？
+
+---
+代码
+```
+/**
+
+	 * 重新提交业务活动
+
+	 * @param transactionId
+
+	 * @return
+
+	 */
+
+	public boolean reconfirmTransaction(String transactionId) {
+
+		log.info("DTS:reconfirm transaction:"+transactionId);
+
+		
+
+		try {
+
+			MainBusinessActivity activity = businessService.getBusinessActivity(transactionId, true);
+
+			log.info(activity.toString());
+
+			
+
+			if(!HandleFailureMode.RECONFIRM.getMode().equals(activity.getHandleFailure())) {
+
+				log.warn("Handle mode of business failured is not reconfirm,ID is "+transactionId);
+
+				return false;
+
+			}
+
+			
+
+			//重新提交分支业务
+
+			List<SubBusinessAction> reconfirmList = new ArrayList<SubBusinessAction> ();
+
+			for(SubBusinessAction subAction : activity.getActionList()) {
+
+				//查询执行结果
+
+				String serviceName = subAction.getServiceName();
+
+				Object serviceObj = AppContext.getBean(serviceName);
+
+				CurrentSubAction currentAction = (CurrentSubAction)MethodUtils.invokeMethod(serviceObj, "getCurrentAction", new String[] {transactionId, serviceName}); //本来是没有这个方法getCurrentAction的，这个方法是依靠注解@CurrentAction实现的 //注解的使用方式是：1.如果service.方法()成功，那么service就增加了getCurrentAction这个方法；2.如果失败，那么就不添加
+
+				if(currentAction == null) { //临时保存所有失败的sql，稍后重新执行一次
+
+					reconfirmList.add(subAction);
+
+				}					
+
+			}
+
+			//没有执行成功的分支服务
+
+			if(activity.getActionList().size() == reconfirmList.size()) {
+
+				endTransaction(transactionId);
+
+				return false;
+
+			}
+
+			
+
+			for(SubBusinessAction subAction : reconfirmList) {
+
+				String serviceName = subAction.getServiceName();
+
+				Object serviceObj = AppContext.getBean(serviceName);
+
+				
+
+				String reconfirmMethodName = subAction.getMethodName();
+
+				ISerializer serializer = SerializerFactory.getSerializer();
+
+				
+
+				String serializerStr = subAction.getParamsValue();				
+
+				Object paramsValue = serializer.mergeFrom(serializerStr);
+
+				
+
+				if(BusinessIDManager.getBusinessId() == null) {
+
+					BusinessIDManager.setBusinessId(transactionId);
+
+				} else if(!transactionId.equals(BusinessIDManager.getBusinessId())) {
+
+					log.warn("transactionId:"+transactionId + " ThreadLocal:"+BusinessIDManager.getBusinessId());
+
+					BusinessIDManager.setBusinessId(transactionId);
+
+				}
+
+				
+
+				Object resultObj = MethodUtils.invokeMethod(serviceObj, reconfirmMethodName, paramsValue);
+
+				log.info(new StringBuilder("reconfirm transaction[id=").append(transactionId).append(",serviceName=").append(serviceName)
+
+						.append("] execute result is").append(resultObj).toString());
+
+			}			
+
+			
+
+		} catch(Exception ex) { //如果再次失败，怎么处理？没有处理。所以这个再次执行失败的sql，只是一个挽救措施，并不能100%解决分布式事务的问题，也就是说，只是提高成功度。事实上，不仅没有做任何处理，看对返回的处理就知道，如果是再次执行失败sql，是默认执行成功的！！！哪怕再次执行失败了，也是当做是成功的！！！不仅对这次的再次执行失败sql没有任何处理，而且对失败sql的最终这么一个失败结果也没有做任何处理，反而到了这一步，就直接哪怕失败了也当做是成功了。//再次失败的话，不是在这里处理的，而是在定时任务里去处理的：1.扫库 2.再次执行。成功之后修改主事务活动的姿态为start(再次执行时候的时候，状态是start)——》end；没有成功，前30分钟~2个小时的主事务活动会反复执行多次。
+
+			log.error("DTS:reconfirm transaction["+transactionId+"] exception.", ex);			
+
+			
+
+			return false; 
+
+		} finally {
+
+			BusinessIDManager.remove();
+
+		}
+
+		
+
+		//重新提交成功，结束业务活动
+
+		endTransaction(transactionId);		
+
+		
+
+		return true;
+
+	}
+
+
+```
+
+#### 取消事务
+什么时候需要取消事务？为什么要取消事务？
+
+# 代码
+```
+/**
+
+	 * 支付成功确认
+
+	 * @param orderId
+
+	 * @return
+
+	 */
+
+	public PaySuccConfirmResponse paySuccConfirm(OrderConfirmRequest orderConfirmRequest) {
+
+		log.info("Begin method : paySuccConfirm, parameter : " + orderConfirmRequest);
+
+		
+
+		String orderId = orderConfirmRequest.getOrderId();
+
+		String payChannelOrderId = orderConfirmRequest.getPayChannelOrderId();
+
+		String cardNo = orderConfirmRequest.getCardNo();
+
+		//Date payDate = orderConfirmRequest.getPayChannelPayDate();
+
+		
+
+		PaySuccConfirmResponse paySuccResponse = new PaySuccConfirmResponse();
+
+		//事件流一:根据交易号查询
+
+		
+
+		Order paySuccessOrder = iOrderServer.getOrder(orderId);
+
+		log.info("OrderManageServiceImpl paySuccConfirm to is param:"+paySuccessOrder);
+
+		
+
+		boolean checkFlag = checkOrderSucced(paySuccessOrder ,paySuccResponse);
+
+		if(!checkFlag) {
+
+			log.info("End method : paySuccConfirm in the first time check,paySuccResponse :"+paySuccResponse);
+
+			return paySuccResponse;
+
+		}
+
+		log.info("checkOrderSucced end orderID is "+orderId);
+
+		//二：更新定单之前 判断其状态是否为未支付状态
+
+		if (!OrderStatus.OrderStatus_NOT_PAY.getStatus().equals(paySuccessOrder.getPaymentStatus())) {
+
+			paySuccResponse.setRetCode(OrderServiceErrorCode.ORDER_PAYSTATUS_IS_NOT_NOPAY.getCode());
+
+			paySuccResponse.setRetMsg(OrderServiceErrorCode.ORDER_PAYSTATUS_IS_NOT_NOPAY.getDesc());
+
+			log.info("End method : paySuccConfirm, paySuccResponse : " + paySuccResponse);
+
+			return paySuccResponse;
+
+		}
+
+		
+
+		/*缓存控制并发*/
+
+		try {
+
+			ICache cache = (ICache)AppContext.getBean("cache");
+
+			String cacheData = (String)cache.get(SUCC_CACHE_KEY+orderId);
+
+			if(null == cacheData) {
+
+				cache.add(SUCC_CACHE_KEY+orderId, 2, "0");
+
+			} else {
+
+				paySuccessOrder.setPaymentStatus(OrderStatus.OrderStatus_PAY_SUCCESS.getStatus());
+
+//				notifyOrderSuccess(paySuccResponse, paySuccessOrder, true, false);
+
+				log.info("End method : paySuccConfirm, paySuccResponse : " + paySuccResponse);
+
+				return paySuccResponse;
+
+			}
+
+		} catch (Exception e) {
+
+			log.warn("get cspt order pay success memcached key failed!");
+
+		}
+
+		
+
+		//获取该商家的业务配值
+
+		MerchantPayclassConfig mpc = iOrderServer.getMerchantPayClassConfig(paySuccessOrder.getMerchantId(), paySuccessOrder.getPayClassId());
+
+		log.info("OrderManageServiceImpl paySuccConfirm to mpc is param:"+mpc);
+
+		if (mpc == null) {
+
+			paySuccResponse.setRetCode(OrderServiceErrorCode.MERCHANT_PAYCLASS_CONFIG_IS_NULL.getCode());
+
+			paySuccResponse.setRetMsg(OrderServiceErrorCode.MERCHANT_PAYCLASS_CONFIG_IS_NULL.getDesc());
+
+			log.info("End method : paySuccConfirm, paySuccResponse : " + paySuccResponse);
+
+			return paySuccResponse;
+
+		}
+
+		BigDecimal bankRate=new BigDecimal("0");
+
+		//计算出手续费 保证金
+
+		Map<String, Object> chargeMap = new HashMap<String, Object>();
+
+		try {
+
+			
+
+			log.info("OrderManageServiceImpl paySuccConfirm to callCharge is paySuccessOrder in param:"+paySuccessOrder);
+
+			chargeMap = iOrderServer.callCharge(paySuccessOrder.getMerchantId(), paySuccessOrder.getPayClassId(), paySuccessOrder.getTxMoney(),bankRate);
+
+			log.info("OrderManageServiceImpl paySuccConfirm to chargeMap is param:"+chargeMap);
+
+			if (chargeMap == null) {
+
+				paySuccResponse.setRetCode(OrderServiceErrorCode.CALL_COUNTCHARGE_EXCEPTION.getCode());
+
+				paySuccResponse.setRetMsg(OrderServiceErrorCode.CALL_COUNTCHARGE_EXCEPTION.getDesc());
+
+				log.info("End method : paySuccConfirm, paySuccResponse : " + paySuccResponse);
+
+				return paySuccResponse;
+
+			}
+
+			BigDecimal charges = (BigDecimal) chargeMap.get("gzhCharge");
+
+			log.info("OrderManageServiceImpl paySuccConfirm to charges is param:"+charges);
+
+			charges = charges.setScale(2, RoundingMode.DOWN);
+
+			log.info("OrderManageServiceImpl paySuccConfirm to charges scale is param:"+charges);
+
+			paySuccessOrder.setCharges(charges);
+
+			BigDecimal proxy1Charge = (BigDecimal)chargeMap.get("oneProxyCharge");
+
+			log.info("OrderManageServiceImpl paySuccConfirm to proxy1Charge is param:"+proxy1Charge);
+
+			proxy1Charge = proxy1Charge.setScale(2, RoundingMode.DOWN);
+
+			log.info("OrderManageServiceImpl paySuccConfirm to proxy1Charge scale is param:"+proxy1Charge);
+
+			if(proxy1Charge.compareTo(BigDecimal.ZERO) <0){
+
+				proxy1Charge = BigDecimal.ZERO;
+
+			}
+
+			log.info("OrderManageServiceImpl paySuccConfirm to proxy1Charge scale zero is param:"+proxy1Charge);
+
+			paySuccessOrder.setProxy1Charges(proxy1Charge);
+
+			
+
+			BigDecimal proxy2Charge = (BigDecimal)chargeMap.get("twoProxyCharge");
+
+			log.info("OrderManageServiceImpl paySuccConfirm to proxy2Charge is param:"+proxy2Charge);
+
+			proxy2Charge = proxy2Charge.setScale(2, RoundingMode.DOWN);
+
+			log.info("OrderManageServiceImpl paySuccConfirm to proxy2Charge scale is param:"+proxy2Charge);
+
+			if(proxy2Charge.compareTo(BigDecimal.ZERO) <0){
+
+				proxy2Charge = BigDecimal.ZERO;
+
+			}
+
+			log.info("OrderManageServiceImpl paySuccConfirm to proxy2Charge scale zero is param:"+proxy2Charge);
+
+			paySuccessOrder.setProxy2Charges(proxy2Charge);
+
+			
+
+			BigDecimal proxy3Charge = (BigDecimal)chargeMap.get("threeProxyCharge");
+
+			log.info("OrderManageServiceImpl paySuccConfirm to proxy3Charge is param:"+proxy3Charge);
+
+			proxy3Charge = proxy3Charge.setScale(2, RoundingMode.DOWN);
+
+			log.info("OrderManageServiceImpl paySuccConfirm to proxy3Charge scale is param:"+proxy3Charge);
+
+			if(proxy3Charge.compareTo(BigDecimal.ZERO) <0){
+
+				proxy3Charge = BigDecimal.ZERO;
+
+			}
+
+			log.info("OrderManageServiceImpl paySuccConfirm to proxy3Charge scale zero is param:"+proxy3Charge);
+
+			paySuccessOrder.setProxy3Charges(proxy3Charge);
+
+			
+
+			BigDecimal deposit = (BigDecimal)chargeMap.get("riskCharge");
+
+			log.info("OrderManageServiceImpl paySuccConfirm to deposit is param:"+deposit);
+
+			deposit = deposit.setScale(2, RoundingMode.DOWN);
+
+			log.info("OrderManageServiceImpl paySuccConfirm to deposit scale is param:"+deposit);
+
+			paySuccessOrder.setDeposit(deposit);
+
+			
+
+			paySuccessOrder.setProxy1Id((String) chargeMap.get("proxy1Id"));
+
+			paySuccessOrder.setProxy2Id((String) chargeMap.get("proxy2Id"));
+
+			paySuccessOrder.setProxy3Id((String) chargeMap.get("proxy3Id"));
+
+		} catch (Exception e) {
+
+			log.error(e);
+
+			paySuccResponse.setRetCode(OrderServiceErrorCode.CALL_COUNTCHARGE_EXCEPTION.getCode());
+
+			paySuccResponse.setRetMsg(OrderServiceErrorCode.CALL_COUNTCHARGE_EXCEPTION.getDesc());
+
+			log.info("End method : paySuccConfirm, paySuccResponse : " + paySuccResponse);
+
+			return paySuccResponse;
+
+		}
+
+		//判断手续费是否有为负数的情况
+
+		if (paySuccessOrder.getCharges().compareTo(new BigDecimal(0)) < 0) {
+
+			log.warn(OrderServiceErrorCode.CHARGES_LESS_THAN_ZERO.getDesc());
+
+			paySuccResponse.setRetCode(OrderServiceErrorCode.CHARGES_LESS_THAN_ZERO.getCode());
+
+			paySuccResponse.setRetMsg(OrderServiceErrorCode.CHARGES_LESS_THAN_ZERO.getDesc());
+
+			log.info("End method : paySuccConfirm, paySuccResponse : " + paySuccResponse);
+
+			return paySuccResponse;
+
+		}		
+
+		
+
+		Date currentDate = new Date();
+
+		//保证金值大于0
+
+		if (paySuccessOrder.getDeposit() != null && paySuccessOrder.getDeposit().compareTo(new BigDecimal(0)) > 0) {
+
+			Date depositRefundDate = CountDepositSettleDate(mpc.getDepositPeriod(), currentDate);	//计算支付保证金返还日期
+
+			String returnDate = DateFormatUtils.format(depositRefundDate, "yyyyMMdd");
+
+			
+
+			OrderDeposit deposit = new OrderDeposit();
+
+			deposit.setAmount(paySuccessOrder.getDeposit());
+
+			deposit.setMerchantId(paySuccessOrder.getMerchantId());
+
+			deposit.setOrderId(paySuccessOrder.getOrderId());
+
+			deposit.setPayClassId(paySuccessOrder.getPayClassId());
+
+			deposit.setReturnDate(returnDate);
+
+			deposit.setSettleStatus(SettleStatus.SETTLESTATUS_UNSETTLED.getStatus());
+
+			log.info("OrderManageServiceImpl paySuccConfirm to deposit INVO is param:"+deposit);
+
+			paySuccessOrder.setOrderDeposit(deposit);
+
+		} else {
+
+			log.info("Deposit is null or Deposit less than zero ,orderId is : " + orderId);
+
+		}
+
+		
+
+		Date settleDate = null; //结算日期
+
+		settleDate = CountSettleDate(mpc, currentDate);
+
+		paySuccessOrder.setPayDate(currentDate);
+
+		paySuccessOrder.setPayChannelOrderId(payChannelOrderId);
+
+		if(StringUtils.isNotEmpty(cardNo)){//modify by scj 2016-05-24 代扣取不取卡号问题
+
+			paySuccessOrder.setCardNo(cardNo);
+
+		}
+
+		paySuccessOrder.setPaymentStatus(OrderStatus.OrderStatus_PAY_SUCCESS.getStatus());
+
+		paySuccessOrder.setSettleDate(settleDate);
+
+		
+
+		log.info("OrderManageServiceImpl paySuccConfirm to paySuccessOrder INVO is param:"+paySuccessOrder);
+
+		//异步记账请求
+
+		AsynChargeAccountRequest  asynAccountReq = new AsynChargeAccountRequest();
+
+		asynAccountReq.setCharges(paySuccessOrder.getCharges());
+
+		asynAccountReq.setDeposit(paySuccessOrder.getDeposit());
+
+		asynAccountReq.setTradeAmount(paySuccessOrder.getTxMoney());
+
+		asynAccountReq.setMerchantId(paySuccessOrder.getMerchantId());
+
+		asynAccountReq.setOrderId(paySuccessOrder.getOrderId());
+
+		asynAccountReq.setTradeDate(paySuccessOrder.getPayDate());
+
+		asynAccountReq.setOrderType(paySuccessOrder.getOrderType());
+
+		
+
+		//在此检查该笔交易是否已修改为成功，确保数据库不会重复插入保证金信息
+
+		/*Order checkSuccessOrder = iOrderServer.getOrder(orderId);
+
+		checkFlag = checkOrderSucced(checkSuccessOrder ,paySuccResponse);
+
+		if(!checkFlag) {
+
+			log.info("End method : paySuccConfirm before updateOrder, paySuccResponse :"+paySuccResponse);
+
+			return paySuccResponse;
+
+		}*/
+
+		
+
+		//创建支付成功业务
+
+		log.info("OrderManageServiceImpl paySuccConfirm to asynAccountReq INVO is param:"+asynAccountReq);
+
+		MainBusinessActivity mainActivity = BusinessServiceUtils.createPaySuccessBusiness(asynAccountReq);
+
+		if (mainActivity == null) {
+
+			paySuccResponse.setRetCode(OrderServiceErrorCode.ORDERSERVICE_SERIALIZE_FAILURE.getCode());
+
+			paySuccResponse.setRetMsg(OrderServiceErrorCode.ORDERSERVICE_SERIALIZE_FAILURE.getDesc());
+
+			log.info("End method : paySuccConfirm, paySuccResponse : " + paySuccResponse);
+
+			return paySuccResponse;
+
+		}
+
+		//三开启分布式事务
+
+		log.info("OrderManageServiceImpl paySuccConfirm to mainActivity INVO is param:"+mainActivity);
+
+		String transactionId = iTransactionManager.beginTransaction(mainActivity);
+
+		if (transactionId == null) {
+
+			paySuccResponse.setRetCode(OrderServiceErrorCode.CREATE_MAIN_BUSINESS_FAILURE.getCode());
+
+			paySuccResponse.setRetMsg(OrderServiceErrorCode.CREATE_MAIN_BUSINESS_FAILURE.getDesc());
+
+			log.info("End method : paySuccConfirm, paySuccResponse : " + paySuccResponse);
+
+			return paySuccResponse;
+
+		}
+
+		
+
+		//六记录支付成功时间，更新交易支付状态为支付成功，如果保证金不为空，插入保证金记录
+
+		try {
+
+			iOrderServer.insertDepositAndUpdateOrder(paySuccessOrder,orderConfirmRequest.getOrderDCard());
+
+		} catch (Exception ex) {
+
+			log.error("order paySuccess handle exception ", ex);
+
+			//分布式结束
+
+			iTransactionManager.endTransaction(transactionId);
+
+			
+
+			paySuccResponse.setRetCode(OrderServiceErrorCode.PAY_SUCCESS_FAILURE.getCode());
+
+			paySuccResponse.setRetMsg(OrderServiceErrorCode.PAY_SUCCESS_FAILURE.getDesc());
+
+			log.info("End method : paySuccConfirm, paySuccResponse : " + paySuccResponse);
+
+			return paySuccResponse;
+
+		}
+
+		
+
+		//七 记账
+
+		try {
+
+			accountServiceInner.asynChargeAccount(asynAccountReq);
+
+		} catch (Exception e) {
+
+			log.error("account handle exception,now reconfirm transaction. account handle exception msg is:", e);
+
+			
+
+			// 重新提交业务
+
+			boolean reconfirmFlag = iTransactionManager.reconfirmTransaction(transactionId);
+
+			log.info("reconfirm transaction flag:" + reconfirmFlag);
+
+			notifyOrderSuccess(paySuccResponse, paySuccessOrder, true, true);
+
+			log.info("End method : paySuccConfirm, paySuccResponse : " + paySuccResponse);
+
+			return paySuccResponse;
+
+			
+
+		}
+
+		
+
+		//八结束分布式事务
+
+		boolean endTransactionFlag = iTransactionManager.endTransaction(transactionId);
+
+		log.info("endTransaction flag" + endTransactionFlag);
+
+		
+
+//		//异步调用交易后置风险检查			
+
+//		try {
+
+//			if(iOrderServer.isNeedRiskCheck(paySuccessOrder.getMerchantId(), paySuccessOrder.getPayClassId())) {
+
+//				RiskControlClient.riskCheckTranAfter(paySuccessOrder);
+
+//			}
+
+//			notifyOrderSuccess(paySuccResponse, paySuccessOrder, true, true);
+
+//			try {
+
+//				boolean assesStatus = (Boolean)iMemberService.checkAssessStatus(paySuccessOrder.getMerchantId());
+
+//				paySuccResponse.getMap().put("isAssessPassed", assesStatus+"");
+
+//			} catch (Exception e) {
+
+//				log.error(e);
+
+//				if(null != paySuccResponse.getMap()){
+
+//					paySuccResponse.getMap().put("isAssessPassed", true+"");
+
+//				}
+
+//			}
+
+//		} catch (Exception ex) {
+
+//			log.error("afterRiskControlCheck exception", ex);
+
+//		}
+
+		
+
+		Map<String, String> notifyData = new HashMap<String, String>();
+
+		notifyData.put("order_version", paySuccessOrder.getVersion());
+
+		notifyData.put("orderId", paySuccessOrder.getOrderId());
+
+		notifyData.put("txMoney", paySuccessOrder.getTxMoney().toString());
+
+		notifyData.put("orderMoney", paySuccessOrder.getOrderMoney().toString());
+
+		notifyData.put("txDate", DateFormatUtils.format(paySuccessOrder.getOrderDate(), "yyyy-MM-dd HH:mm:ss"));
+
+		log.info("OrderManageServiceImpl paySuccConfirm to notifyData INVO is param:"+notifyData);
+
+		paySuccResponse.setMap(notifyData);
+
+		//广播订单支付成功的消息 //通知谁？通知作用？
+
+		MqMsgHelper.sendMsg(MQTopic.ORDER_SUCCESS, paySuccessOrder);
+
+
+
+		log.info("End method : paySuccConfirm, return :" + paySuccResponse);
+
+		return paySuccResponse;
+
+	}
+
+
+```
+
+
+# 分布式事务id
+生成规则
+com.gzh.dpp.dts.util.ObjectId
+
+A globally unique identifier for objects.
+
+Consists of 12 bytes, divided as follows:
+
+ObjectID layout
+0	1	2	3	4	5	6	7	8	9	10	11
+time	machine	pid	inc
+Instances of this class are immutable.
+
+Author:
+从mengodb中取得生成唯一id方法
+@mongodb.driver.manual
+core/object-id ObjectId
+
+
+---
+代码
+```
+private ObjectId(final int timestamp, final int machineIdentifier, final short processIdentifier, final int counter, final boolean checkCounter) {
+
+		if ((machineIdentifier & 0xff000000) != 0) {
+
+			throw new IllegalArgumentException("The machine identifier must be between 0 and 16777215 (it must fit in three bytes).");
+
+		}
+
+		if (checkCounter && ((counter & 0xff000000) != 0)) {
+
+			throw new IllegalArgumentException("The counter must be between 0 and 16777215 (it must fit in three bytes).");
+
+		}
+
+		this.timestamp = timestamp;
+
+		this.machineIdentifier = machineIdentifier;
+
+		this.processIdentifier = processIdentifier;
+
+		this.counter = counter & LOW_ORDER_THREE_BYTES;
+
+	}
+
+
+```
+
+注：支付有个2个事务id，但是后面的把前面的覆盖了
+1.UUID
+2.按一定生成规则
+
+//覆盖代码
+、、
+```
+public String createBusinessActivity(MainBusinessActivity businessActivity) {
+
+		String transactionId = ObjectId.get().toString();
+
+		businessActivity.setTransactionId(transactionId); //新的事务id
+
+		businessActivity.setStatus(ActivityStatus.BEGIN.getStatus());
+
+		List<SubBusinessAction> actionList = businessActivity.getActionList();
+
+		try {
+
+			dao.save("addBusinessActivity", businessActivity);
+
+			for(SubBusinessAction action: actionList) {
+
+				action.setTransactionId(businessActivity.getTransactionId());
+
+				action.setActionId(ObjectId.get().toString()); //子sql的流水id，也是使用新的流水id，生成方式和事务id一样
+
+				dao.save("addBusinessAction", action);
+
+			}
+
+		} catch(Exception ex) {
+
+			log.error("DTS:create business activity exception.", ex);
+
+			throw new BaseRuntimeException(ex);
+
+		}		
+
+		
+
+		return businessActivity.getTransactionId();
+
+	}
+
+
+```
+
+# 事务和事务包含的sql
+关系
+1.一个事务表示一个完整的事务活动，就叫主活动吧
+2.包含的sql，就是子活动
+
+---
+表和字段
+//主活动
+```
+public class MainBusinessActivity {
+
+	//业务类型：cspt、cftservice、pftpservice，见BusinessType.java
+
+	private String businessType;
+
+	//主业务ID
+
+	private String transactionId; //主活动id，也就是事务id
+
+	//主业务状态
+
+	private String status;
+
+	//异常机制：CANCEL、RECONFIRM
+
+	private String handleFailure;
+
+	//分支业务总数
+
+	private Integer actionCount; //子活动数量
+
+	//创建时间
+
+	private Date createTime;
+
+	//分支业务列表
+
+	private List<SubBusinessAction> actionList; //子活动集合
+
+
+```
+
+//子活动
+```
+public class SubBusinessAction {
+
+
+
+	private String actionId; //子活动id
+
+	private String transactionId; //主活动id
+
+	private String serviceName; //service类的名字
+
+	private String methodName; //service类的方法名字
+
+	private String paramsValue; //service类的方法参数(字符串格式)
+
+	private Date createTime;
+
+
+```
+
+# 涉及到的服务
+1.事务服务
+Transaction Service(TS)
+
+是分布式事务服务的上层/应用层，调用底层-分布式事务服务的方法，实现业务的分布式事务功能(即一个方法访问多个数据库)。
+
+2.分布式事务服务
+Distributed  Transaction Service(DTS)
+
+所有关于分布式的类和内容，都是在这个服务里实现。
+
+# 电子钱包
+
+```
+@Override
+
+	public MemberTradeResponse confirmPayment(String memberId, String tradeNo) {
+
+		log.info("Begin method confirmPayment ,params: memberId = " + memberId + ", tradeNo = " + tradeNo);
+
+		MemberTradeResponse mtr = new MemberTradeResponse();
+
+		//检查交易号是否存在
+
+		MemberTrade memberTrade = iMemberService.getMemberTradeByTradeNo(tradeNo);
+
+		if (memberTrade ==null) {
+
+			mtr.setRetCode(PersonManageServiceErrorCode.MEMBER_TRADE_IS_NULL.getCode());
+
+			mtr.setRetMsg(PersonManageServiceErrorCode.MEMBER_TRADE_IS_NULL.getDesc());
+
+			log.info("End method confirmPayment ,return :  " + mtr);
+
+			return mtr;
+
+		}
+
+		//若成功，则返回错误码，提示订单已支付
+
+		if (TradeStatus.SUCCESS.getStatus().equals(memberTrade.getTradeStatus())) {
+
+			mtr.setRetCode(PersonManageServiceErrorCode.TRADE_STATUS_IS_SUCCESS.getCode());
+
+			mtr.setRetMsg(PersonManageServiceErrorCode.TRADE_STATUS_IS_SUCCESS.getDesc());
+
+			log.info("End method confirmPayment ,return :  " + mtr);
+
+			return mtr;
+
+		}
+
+		//检查付款人账号是否存在
+
+		Member payer = iMemberService.getMemberById(memberId);
+
+		if (payer == null) {
+
+			mtr.setRetCode(PersonManageServiceErrorCode.MEMBERID_IS_NOT_EXIST.getCode());
+
+			mtr.setRetMsg(PersonManageServiceErrorCode.MEMBERID_IS_NOT_EXIST.getDesc());
+
+			log.info("End method confirmPayment ,return :  " + mtr);
+
+			return mtr;
+
+		}
+
+		//获取付款人账户
+
+		String payerAccountId = payer.getAccountId();
+
+		AccountResponse accountResponse = accountServiceInner.getAccount(null, payerAccountId);
+
+		if(!ServiceResponse.RETCODE_SUCCESS.equals(accountResponse.getRetCode())) {
+
+			mtr.setRetCode(accountResponse.getRetCode());
+
+			mtr.setRetMsg(accountResponse.getRetMsg());
+
+			log.info("End method confirmPayment ,return :  " + mtr);
+
+			return mtr;
+
+		}
+
+		Account payerAccount = accountResponse.getAccount();
+
+		//状态正常
+
+		if(!AccountStatus.NORMAL.getStatus().equals(payerAccount.getAccountStatus())) {
+
+			log.warn(new StringBuilder("account[").append(payerAccount.getAccountId()).append("] is invalid").toString());
+
+			mtr.setRetCode(PersonManageServiceErrorCode.PAYER_ACCOUNT_STATUS_INVALID.getCode());
+
+			mtr.setRetMsg(PersonManageServiceErrorCode.PAYER_ACCOUNT_STATUS_INVALID.getDesc());
+
+			log.info("End method confirmPayment ,return :  " + mtr);
+
+			return mtr;
+
+		}
+
+		//余额充足
+
+		if(payerAccount.getAccountAvailableamount().compareTo(memberTrade.getAmount()) == -1) {
+
+			log.warn(new StringBuilder("account ["+payerAccount.getAccountId()+"] avaliableAmount not enough").toString());
+
+			mtr.setRetCode(PersonManageServiceErrorCode.ACCOUNT_AMOUNT_NOT_ENOUGH.getCode());
+
+			mtr.setRetMsg(PersonManageServiceErrorCode.ACCOUNT_AMOUNT_NOT_ENOUGH.getDesc());
+
+			log.info("End method confirmPayment ,return :  " + mtr);
+
+			return mtr;
+
+		}
+
+		
+
+		//账户变动金额-回滚
+
+		SynChargeAccountRequest cancelValue = new SynChargeAccountRequest();
+
+		cancelValue.setAccountType(payerAccount.getAccountTypeId());
+
+		cancelValue.setAccountId(payerAccount.getAccountId());// 账户编号
+
+		cancelValue.setAccountTradetype(AccountTradeType.BALANCEPAY.getId());// 账户交易类型
+
+		cancelValue.setAmountChanged(memberTrade.getAmount());// 总金额变动值
+
+		cancelValue.setFrozenAmountChanged(new BigDecimal(0));// 冻结金额变动值
+
+		cancelValue.setAvailableAmountChanged(cancelValue.getAmountChanged());// 可用金额变动值
+
+		cancelValue.setBillNumber(memberTrade.getTradeNo());// 票据号，流水号
+
+		cancelValue.setCheckAccountStatus(false);// 是否检查账户状态
+
+		cancelValue.setCheckAvailableAmount(false);// 是否检查可用金额
+
+		
+
+		//创建提现转账申请业务活动
+
+		MainBusinessActivity business = BusinessServiceUtils.createBusinessRollback(cancelValue,SERVICENAME,METHODNAME_UPDATESTATUSFORMEMBERTRADESUCCESS,HandleFailureMode.CANCEL.getMode());
+
+		if (business == null) {
+
+			log.warn("business serialize failure");
+
+			mtr.setRetCode(PersonManageServiceErrorCode.PERSONMANAGESERVICE_SERIALIZE_FAILURE.getCode());
+
+			mtr.setRetMsg(PersonManageServiceErrorCode.PERSONMANAGESERVICE_SERIALIZE_FAILURE.getDesc());
+
+
+
+			log.info("End method confirmPayment ,return :  " + mtr);
+
+			return mtr;
+
+		}
+
+		String transactionId = iTransactionManager.beginTransaction(business);
+
+		if (transactionId == null) {
+
+			log.warn("create business failure");
+
+			mtr.setRetCode(PersonManageServiceErrorCode.CREATE_MAIN_BUSINESS_FAILURE.getCode());
+
+			mtr.setRetMsg(PersonManageServiceErrorCode.CREATE_MAIN_BUSINESS_FAILURE.getDesc());
+
+
+
+			log.info("End method confirmPayment ,return :  " + mtr);
+
+			return mtr;
+
+		}
+
+		
+
+		//账务记账
+
+		SynChargeAccountRequest synChargeAccountRequest = new SynChargeAccountRequest();
+
+		synChargeAccountRequest.setAccountType(payerAccount.getAccountTypeId());
+
+		synChargeAccountRequest.setAccountId(payerAccount.getAccountId());// 账户编号
+
+		synChargeAccountRequest.setAccountTradetype(AccountTradeType.BALANCEPAY.getId());// 账户交易类型
+
+		synChargeAccountRequest.setAmountChanged(memberTrade.getAmount().multiply(new BigDecimal(-1)));// 总金额变动值
+
+		synChargeAccountRequest.setFrozenAmountChanged(new BigDecimal(0));// 冻结金额变动值
+
+		synChargeAccountRequest.setAvailableAmountChanged(synChargeAccountRequest.getAmountChanged());// 可用金额变动值
+
+		synChargeAccountRequest.setBillNumber(memberTrade.getTradeNo());// 票据号，流水号
+
+		synChargeAccountRequest.setCheckAccountStatus(true);// 是否检查账户状态
+
+		synChargeAccountRequest.setCheckAvailableAmount(true);// 是否检查可用金额	
+
+		
+
+		try{
+
+			accountServiceInner.synChargeAccount(synChargeAccountRequest); //更新账户库的账户金额
+
+		}catch(Exception e) {
+
+			log.error("confirmPayment synChargeAccount exception", e);
+
+			
+
+			boolean flag = iTransactionManager.endTransaction(transactionId); //和支付系统一样，如果第一个sql就失败了，就直接结束事务
+
+			log.info("end transaction result="+flag);
+
+			
+
+			mtr.setRetCode(PersonManageServiceErrorCode.MEMBER_TRADE_HANDLE_FAILURE.getCode());
+
+			mtr.setRetMsg(PersonManageServiceErrorCode.MEMBER_TRADE_HANDLE_FAILURE.getDesc());
+
+			
+
+			log.info("End method confirmPayment ,return :  " + mtr);
+
+			return mtr;
+
+		}
+
+		
+
+		try {
+
+			memberTrade.setPayerMemberId(payer.getMemberId());
+
+			memberTrade.setPayerAccountId(payer.getAccountId());
+
+			memberTrade.setTradeStatus(TradeStatus.SUCCESS.getStatus());
+
+			Date now = new Date();
+
+			memberTrade.setPayTime(now);
+
+			memberTrade.setModifyTime(now);
+
+			mtr.setMemberTrade(memberTrade);
+
+			//创建转账申请单
+
+			iMemberService.updateStatusForMemberTradeSuccess(memberTrade); //更新会员库的交易状态
+
+			
+
+		} catch(Exception ex) {
+
+			log.error("updateStatusForMemberTradeSuccess exception,rollback", ex);				
+
+			mtr.setRetCode(PersonManageServiceErrorCode.MEMBER_TRADE_HANDLE_FAILURE.getCode());
+
+			mtr.setRetMsg(PersonManageServiceErrorCode.MEMBER_TRADE_HANDLE_FAILURE.getDesc());
+
+			
+
+			//回滚业务 //如果第二个sql失败了，回滚第一个sql //针对异常有2种处理方式，1.重试 2.回滚/取消
+
+			boolean flag = iTransactionManager.rollBackTransaction(transactionId);
+
+			log.info("rollback transaction flag:"+flag);
+
+			
+
+			log.info("End method confirmPayment ,return :  " + mtr);
+
+			mtr.setMemberTrade(memberTrade);
+
+			return mtr;
+
+		} 
+
+		
+
+		boolean flag = iTransactionManager.endTransaction(transactionId);
+
+		log.info("end transaction result="+flag);		
+
+		
+
+		log.info("End method confirmPayment ,return :  " + mtr);
+
+		return mtr;
+
+	}
+
+
+```
+
+
+# 定时任务
+```
+package com.gzh.dpp.tss.exceptionhandling.service;
+
+
+
+
+
+import java.util.ArrayList;
+
+import java.util.List;
+
+
+
+import org.apache.commons.logging.Log;
+
+import org.apache.commons.logging.LogFactory;
+
+
+
+import com.gzh.dpp.dts.manage.IExceptionTransactionService;
+
+import com.gzh.dpp.dts.model.MainBusinessActivity;
+
+import com.gzh.dpp.tss.exceptionhandling.factory.DaoFactory;
+
+import com.gzh.dpp.tss.exceptionhandling.factory.ServiceFactory;
+
+import com.gzh.commons.exception.BaseRuntimeException;
+
+import com.gzh.orm.dao.IGenericDao;
+
+
+
+/**
+
+ * 异常事务处理
+
+ * @author gzh
+
+ *
+
+ */
+
+public class ExceptionTransactionJob {
+
+	private static Log log = LogFactory.getLog(ExceptionTransactionJob.class);
+
+	public void excute(){
+
+		try {
+
+			log.info("TSS:Exception transaction handling begin.");
+
+			// 所有补偿主业务活动
+
+			List<MainBusinessActivity> reconfirmList = new ArrayList<MainBusinessActivity>();
+
+			// 所有回滚主业务活动
+
+			List<MainBusinessActivity> rollBackList = new ArrayList<MainBusinessActivity>();
+
+			//从工厂中获取所有库
+
+			List<IGenericDao> daoList = DaoFactory.getDaoList();
+
+			// 查询前30分钟至前2小时间所有未完成主业务活动
+
+			for(IGenericDao dao : daoList){
+
+				List<MainBusinessActivity> recList = findBusinessActivity(dao,"findReconfirmActivity");
+
+				List<MainBusinessActivity> rolList =  findBusinessActivity(dao,"findCancelActivity");
+
+				reconfirmList.addAll(recList);
+
+				rollBackList.addAll(rolList);
+
+			}
+
+			//循环处理补偿业务
+
+			if(reconfirmList!=null && reconfirmList.size()>0) {
+
+				log.info("TSS:Reconfirm Exception transaction size:"+reconfirmList.size());
+
+				for(int i=0; i<reconfirmList.size(); i++) {
+
+					try {
+
+						MainBusinessActivity activity = (MainBusinessActivity)reconfirmList.get(i);
+
+						log.info(activity.toString());
+
+						IExceptionTransactionService transactionService = ServiceFactory.getInstance(activity.getBusinessType());
+
+						boolean flag = transactionService.handleExceptionTransaction(activity.getTransactionId());
+
+						log.info(new StringBuilder("Reconfirm Exception transaction[").append(activity.getTransactionId()).append("] handle result:").append(flag).toString());
+
+					} catch (Exception e) {//一笔补偿失败，其他补偿继续
+
+						log.error("deal reconfirm occured exception:",e);
+
+					}
+
+				}
+
+			}
+
+			//循环处理回滚业务
+
+			if(rollBackList!=null && rollBackList.size()>0) {
+
+				log.info("TSS:Cancel Exception transaction size:"+rollBackList.size());
+
+				for(int i=0; i<rollBackList.size(); i++) {
+
+					try {
+
+						MainBusinessActivity activity = (MainBusinessActivity)rollBackList.get(i);
+
+						log.info(activity.toString());
+
+						IExceptionTransactionService transactionService = ServiceFactory.getInstance(activity.getBusinessType());
+
+						boolean flag = transactionService.handleExceptionTransaction(activity.getTransactionId());
+
+						log.info(new StringBuilder("rollBack Exception transaction[").append(activity.getTransactionId()).append("] handle result:").append(flag).toString());
+
+					} catch (Exception e) {//一笔回滚失败，其他回滚继续
+
+						log.error("deal rollBackList occured exception:",e);
+
+					}
+
+				}
+
+			}		
+
+			log.info("TSS:Exception transaction handling end.");
+
+		} catch(Exception ex) {
+
+			log.error("TSS:Exception transaction handling error.", ex);
+
+		}		
+
+		
+
+	}
+
+	
+
+	@SuppressWarnings("unchecked")
+
+	private List<MainBusinessActivity> findBusinessActivity(IGenericDao dao ,String sqlIdName) {		
+
+		try {
+
+			return (List<MainBusinessActivity>)dao.find(sqlIdName);			
+
+		} catch(Exception ex) {	
+
+			log.error("find exception business activity list exception.", ex);
+
+			throw new BaseRuntimeException(ex);
+
+		}
+
+	}
+
+}
+
+
+```
+
+```
+@Override
+
+	public boolean handleExceptionTransaction(String transactionId) {
+
+		log.info("DTS:handle exception transaction:"+transactionId);
+
+		
+
+		try {
+
+			MainBusinessActivity activity = businessService.getBusinessActivity(transactionId, true);
+
+			log.info(activity.toString());
+
+			if(!ActivityStatus.BEGIN.getStatus().equals(activity.getStatus())) {
+
+				log.warn("transaction status is not 'begin':"+transactionId);
+
+				return false;
+
+			}
+
+			
+
+			
+
+			//已执行的分支服务
+
+			List<CurrentSubAction> currentActionList = new ArrayList<CurrentSubAction>();
+
+			//未执行的分支服务
+
+			List<SubBusinessAction> unexecutedActionList = new ArrayList<SubBusinessAction>();
+
+			for(SubBusinessAction subAction : activity.getActionList()) {
+
+				//查询执行结果
+
+				String serviceName = subAction.getServiceName();
+
+				Object serviceObj = AppContext.getBean(serviceName);
+
+				CurrentSubAction currentAction = (CurrentSubAction)MethodUtils.invokeMethod(serviceObj, "getCurrentAction", new String[] {transactionId, serviceName});
+
+				if(currentAction != null) {
+
+					currentActionList.add(currentAction);
+
+				} else {
+
+					unexecutedActionList.add(subAction);
+
+				}
+
+			}
+
+			
+
+			//若无任何分支服务，结束业务活动
+
+			if(currentActionList.size() == 0) {
+
+				return endTransaction(transactionId);
+
+			}
+
+			//若各分支服务都有执行并状态一致，结束业务活动
+
+			if(activity.getActionList().size() == currentActionList.size()) {
+
+				String tmpStatus = null;
+
+				boolean flag = true;
+
+				for(CurrentSubAction currentAction : currentActionList) {
+
+					String status = currentAction.getActionStatus();
+
+					if(tmpStatus !=null && !status.equals(tmpStatus)) {
+
+						flag = false;
+
+						break;
+
+					}
+
+					tmpStatus = status;
+
+				}
+
+				if(flag) {
+
+					return endTransaction(transactionId);
+
+				}
+
+			}
+
+			
+
+			//失败处理方式为CANCEL，依次将状态为CONFIRM的分支服务回滚
+
+			if(HandleFailureMode.CANCEL.getMode().equals(activity.getHandleFailure())) {
+
+				for(CurrentSubAction currentAction : currentActionList) {
+
+					if(currentAction != null && currentAction.getActionStatus().equals(ActionStatus.CONFIRM.getStatus())) {
+
+						String serviceName = currentAction.getServiceName();
+
+						Object serviceObj = AppContext.getBean(serviceName);
+
+						
+
+						SubBusinessAction subAction = getSubActionForList(transactionId, serviceName, activity.getActionList());
+
+						
+
+						String cancelMethodName = subAction.getMethodName();
+
+						ISerializer serializer = SerializerFactory.getSerializer();						
+
+						String serializerStr = subAction.getParamsValue();					
+
+						Object paramsValue = serializer.mergeFrom(serializerStr);
+
+						String[] txParams = new String[] {transactionId, serviceName};
+
+						Object resultObj = MethodUtils.invokeMethod(serviceObj, cancelMethodName, new Object[] {paramsValue, txParams});
+
+						log.info(new StringBuilder("handle rollback transaction[id=").append(transactionId).append(",serviceName=").append(serviceName)
+
+								.append("] execute result is").append(resultObj).toString());						
+
+					}
+
+				}
+
+			}
+
+			
+
+			//失败处理方式为RECONFIRM，依次尝试提交未完成的分支服务
+
+			if(HandleFailureMode.RECONFIRM.getMode().equals(activity.getHandleFailure())) {
+
+				for(SubBusinessAction subAction : unexecutedActionList) {
+
+					String serviceName = subAction.getServiceName();
+
+					Object serviceObj = AppContext.getBean(serviceName);
+
+					
+
+					String reconfirmMethodName = subAction.getMethodName();
+
+					ISerializer serializer = SerializerFactory.getSerializer();
+
+					
+
+					String serializerStr = subAction.getParamsValue();				
+
+					Object paramsValue = serializer.mergeFrom(serializerStr);
+
+					
+
+					if(BusinessIDManager.getBusinessId() == null) {
+
+						BusinessIDManager.setBusinessId(transactionId);
+
+					} else if(!transactionId.equals(BusinessIDManager.getBusinessId())) {
+
+						log.warn("transactionId:"+transactionId + " ThreadLocal:"+BusinessIDManager.getBusinessId());
+
+						BusinessIDManager.setBusinessId(transactionId);
+
+					}
+
+					
+
+					Object resultObj = MethodUtils.invokeMethod(serviceObj, reconfirmMethodName, paramsValue);
+
+					log.info(new StringBuilder("handle reconfirm transaction[id=").append(transactionId).append(",serviceName=").append(serviceName)
+
+							.append("] execute result is").append(resultObj).toString());					
+
+				}
+
+			}			
+
+			
+
+		} catch(Exception ex) {
+
+			log.error("DTS:handel exception transaction["+transactionId+"] exception.", ex);
+
+			
+
+			return false;
+
+		} finally {
+
+			BusinessIDManager.remove();
+
+		}		
+
+		
+
+		return endTransaction(transactionId);
+
+	}
+
+
+```
