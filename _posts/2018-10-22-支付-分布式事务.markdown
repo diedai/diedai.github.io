@@ -12,15 +12,29 @@ tags:
     - payment
 ---
 
-
 # 背景
-有哪些业务？在一个事务方法里，有哪些业务？
-主要包含2个库的业务，
-1.订单库
+有哪些业务？在一个事务方法里，有哪些业务？  
+主要包含2个库的业务，  
+1.订单库  
 订单状态
 
-2.账户库
+2.账户库  
 金额
+
+# 总结
+实现分布式事务有很多种不同的解决方案，其中有一种叫做try-confirm-cancel(TCC)。  
+1.try  
+提交事务里包含的每个sql，每个sql都是对应的不同的数据库。  
+2.confirm  
+其实应该叫重复确认reconfirm，就是请求的时候如果有的sql失败了再次提交。  
+3.cancel  
+其实就是回滚，就是有的sql反复提交了多次之后仍然失败那么就全部回滚，包括成功的sql。
+
+除了以上的3个步骤，还有一个定时任务系统，作用是去扫库，就是有的请求当时有的sql失败并且当时请求的时候重复提交再次失败，那么这个时候失败sql只能通过定时任务系统扫库去处理去挽救，即定时任务系统会在一段时间会扫多次，将失败sql提交多次，如果最终仍然失败，那么就回滚。如果成功，那么整个事务就成功，事务主活动状态改为end。
+
+这篇文章要介绍的就是所谓的TCC解决方法。
+
+
 
 # 步骤
 #### 开始事务
@@ -705,7 +719,8 @@ public boolean updateBusinessActivityEnd(String transactionId) {
 ```
 
 #### 取消事务
-什么时候需要取消事务？为什么要取消事务？
+什么时候需要取消事务？为什么要取消事务？已经提交的sql，怎么处理？
+已经提交的sql，进行一个反操作。
 
 # 代码
 ```
@@ -2101,3 +2116,14 @@ public class ExceptionTransactionJob {
 
 
 ```
+
+# 参考
+https://my.oschina.net/pingpangkuangmo/blog/413518
+
+https://yq.aliyun.com/articles/582282
+
+https://coolshell.cn/articles/10910.html
+
+http://jm.taobao.org/2017/04/13/20170413/
+
+https://zhuanlan.zhihu.com/p/25933039
