@@ -159,6 +159,66 @@ https://docs.oracle.com/javase/7/docs/api/java/lang/Object.html#wait()
 # 线程通信的各种场景分析
 <a>http://wingjay.com/2017/04/09/Java%E9%87%8C%E5%A6%82%E4%BD%95%E5%AE%9E%E7%8E%B0%E7%BA%BF%E7%A8%8B%E9%97%B4%E9%80%9A%E4%BF%A1%EF%BC%9F/</a>
 
+# 工作应用
+支付-微服务  
+很多服务都不是web程序，而是java程序，怎么启动？当然是main方法启动。但是这个程序启动之后是不能关闭的，它要一直提供服务。怎么办？while(true)循环。
+
+基于while(true)循环，改善为while(true)的情况下，还要让当前主线程wait，目的是不让程序关闭，一直向外提供服务，最重要的是，让程序wait，避免了循环执行无谓的代码去消耗和占用计算机的资源——说白了，就是不让CPU执行while(true)里的的代码，因为这是纯粹的浪费。
+
+代码  
+```
+package gzh.spring;
+
+
+/*    */ import java.text.SimpleDateFormat;
+/*    */ import java.util.Date;
+/*    */ import org.apache.commons.logging.Log;
+/*    */ import org.apache.commons.logging.LogFactory;
+/*    */ 
+/*    */ 
+/*    */ public class Main
+/*    */ {
+/* 12 */   private static Log log = LogFactory.getLog(Main.class);
+/*    */   
+/* 14 */   private static volatile boolean running = true;
+/*    */   
+/*    */   public static void main(String[] args) {
+/* 17 */     Runtime.getRuntime().addShutdownHook(new Thread() {
+/*    */       public void run() {
+/*    */         try {
+/* 20 */           AppContext.stop();
+/* 21 */           Main.log.info(new SimpleDateFormat("[yyyy-MM-dd HH:mm:ss]").format(new Date()) + " Main server stopped!");
+/*    */         } catch (Throwable t) {
+/* 23 */           Main.log.error("Main stop error:" + t);
+/*    */         }
+/* 25 */         synchronized (Main.class) {
+///* 26 */           Main.access$102(false);
+/* 27 */           Main.class.notify();
+/*    */         }
+/*    */       }
+/*    */     });
+/*    */     try
+/*    */     {
+/* 33 */       AppContext.start();
+/*    */     } catch (RuntimeException e) {
+/* 35 */       log.error(e.getMessage(), e);
+/* 36 */       throw e;
+/*    */     }
+/*    */     
+/* 39 */     log.info(new SimpleDateFormat("[yyyy-MM-dd HH:mm:ss]").format(new Date()) + " Main server started!");
+/*    */     
+/* 41 */     synchronized (Main.class) {
+/* 42 */       while (running) {
+/*    */         try {
+/* 44 */           Main.class.wait(); //让主线程wait
+/*    */         }
+/*    */         catch (Throwable e) {}
+/*    */       }
+/*    */     }
+/*    */   }
+/*    */ }
+
+```
 
 # 参考
 <a>https://www.cnblogs.com/stateis0/p/9061611.html</a>
