@@ -2118,6 +2118,8 @@ public class ExceptionTransactionJob {
 ```
 
 # 参考
+http://blog.sina.com.cn/s/blog_4c925dca0102vm88.html
+
 https://my.oschina.net/pingpangkuangmo/blog/413518
 
 https://yq.aliyun.com/articles/582282
