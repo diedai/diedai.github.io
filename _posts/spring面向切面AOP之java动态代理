@@ -2,7 +2,7 @@
 layout:     post
 title:      "spring面向切面AOP之java动态代理"
 subtitle:   " \"拦截器包含2个核心：1.代理对象(基于反射技术，构造器.创建对象() ) 2.拦截器功能(jvm支持或CGLib支持)\""
-date:       2018-11-08 06:00:00
+date:       2018-11-08 07:00:00
 author:     "青乡"
 header-img: "img/post-bg-2015.jpg"
 catalog: true
