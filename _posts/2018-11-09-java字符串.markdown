@@ -1,0 +1,185 @@
+---
+layout:     post
+title:      "java字符串"
+subtitle:   " \"1.字符串直接量 2.String 3.StringBuilder 4.StringBuffer \""
+date:       2018-11-09 07:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - java字符串
+---
+
+
+# 如何创建字符串
+1.直接量 //从字符串池里找，值存在，则不创建对象；值不存在，才创建对象  
+2.new //一定会创建对象
+
+# 直接量和new，在内存里的区别
+1.直接量 //?  
+2.new //堆区
+
+# 代码和例子
+1.直接量  
+String s = "abc";
+
+2.new  
+String s = new String("abc");  
+
+# String StringBuilder StringBuffer
+1.String
+应用场景
+少量的字符串拼接，因为String.concat()拼接方法和直接量拼接(即+拼接)一样，都会创建新的字符串对象。
+
+```
+//String
+/**
+     * Concatenates the specified string to the end of this string.
+     * <p>
+     * If the length of the argument string is <code>0</code>, then this
+     * <code>String</code> object is returned. Otherwise, a new
+     * <code>String</code> object is created, representing a character
+     * sequence that is the concatenation of the character sequence
+     * represented by this <code>String</code> object and the character
+     * sequence represented by the argument string.<p>
+     * Examples:
+     * <blockquote><pre>
+     * "cares".concat("s") returns "caress"
+     * "to".concat("get").concat("her") returns "together"
+     * </pre></blockquote>
+     *
+     * @param   str   the <code>String</code> that is concatenated to the end
+     *                of this <code>String</code>.
+     * @return  a string that represents the concatenation of this object's
+     *          characters followed by the string argument's characters.
+     */
+    public String concat(String str //新的字符串) {
+        int otherLen = str.length();
+        if (otherLen == 0) {
+            return this;
+        }
+        int len = value.length;
+        char buf[] = Arrays.copyOf(value//旧的字符串, len + otherLen); //最终的字符串长度
+        str.getChars(buf, len); //这一步和StringBuilder的方法是一样的(只是参数个数不一样）
+        return new String(buf, true); //现在最关键的一点来了，因为这一行代码的这个步骤决定了字符串是否创建对象：1.String类是一个对象类型的类，所以它的对象包含了2个部分，就是地址值(变量名字就是地址值)和对象本身的数据(字符串的值就是对象本身的数据，在这里的代码体现为char buf[]这个字符数组才是对象本身的数据) 2.现在有了对象本身的数据char buf[]，但是如果想创建String对象的话，需要把这个字符数组作为构造方法的参数传进去，new一个String对象出来，因为String对象的值就是字符数组类型。
+        
+        //这里有一个问题：为什么不和StringBuilder一样，直接把要拼接的值复制到屁股后面去呢？
+        因为String的数据是字符数组，数组长度创建的时候大小就已经确定下来了，不能改变。而StringBuilder可以，数组大小可以扩容。
+        
+        //具体是怎么扩容的呢？见下文。
+    }
+    
+    /**
+     * Copy characters from this string into dst starting at dstBegin.
+     * This method doesn't perform any range checking.
+     */
+    void getChars(char dst[], int dstBegin) {
+        System.arraycopy(value //新的字符串的值(或者叫源字符串), 0, dst //旧的字符串(或者叫目标字符串), dstBegin, value.length); //把value复制到dst，得到最终的字符串，最终的字符串就是dst——因为已经把value复制过来了，所以dst现在包含了2个字符串的拼接
+    }
+```
+
+//AbstractStringBuilder如何扩容字符数组？
+```
+/**
+     * This implements the expansion semantics of ensureCapacity with no
+     * size check or synchronization.
+     */
+    void expandCapacity(int minimumCapacity) {
+        int newCapacity = value.length * 2 + 2; //默认是扩容2倍
+        if (newCapacity - minimumCapacity < 0)
+            newCapacity = minimumCapacity; //扩容2倍不够的话，就使用2个字符串加起来的实际长度
+        if (newCapacity < 0) {
+            if (minimumCapacity < 0) // overflow
+                throw new OutOfMemoryError();
+            newCapacity = Integer.MAX_VALUE;
+        }
+        value = Arrays.copyOf(value, newCapacity); //jvm底层实现：扩容字符数组
+    }
+```
+
+2.StringBuilder
+应用场景
+大量的字符串拼接，因为不会创建新的对象。
+
+```
+//AbstractStringBuilder
+/**
+     * Appends the specified string to this character sequence.
+     * <p>
+     * The characters of the {@code String} argument are appended, in
+     * order, increasing the length of this sequence by the length of the
+     * argument. If {@code str} is {@code null}, then the four
+     * characters {@code "null"} are appended.
+     * <p>
+     * Let <i>n</i> be the length of this character sequence just prior to
+     * execution of the {@code append} method. Then the character at
+     * index <i>k</i> in the new character sequence is equal to the character
+     * at index <i>k</i> in the old character sequence, if <i>k</i> is less
+     * than <i>n</i>; otherwise, it is equal to the character at index
+     * <i>k-n</i> in the argument {@code str}.
+     *
+     * @param   str   a string.
+     * @return  a reference to this object.
+     */
+    public AbstractStringBuilder append(String str) {
+        if (str == null) str = "null";
+        int len = str.length();
+        ensureCapacityInternal(count + len);
+        str.getChars(0, len, value, count);
+        count += len;
+        return this;
+    }
+```
+
+```
+//String
+/**
+     * Copies characters from this string into the destination character
+     * array.
+     * <p>
+     * The first character to be copied is at index <code>srcBegin</code>;
+     * the last character to be copied is at index <code>srcEnd-1</code>
+     * (thus the total number of characters to be copied is
+     * <code>srcEnd-srcBegin</code>). The characters are copied into the
+     * subarray of <code>dst</code> starting at index <code>dstBegin</code>
+     * and ending at index:
+     * <p><blockquote><pre>
+     *     dstbegin + (srcEnd-srcBegin) - 1
+     * </pre></blockquote>
+     *
+     * @param      srcBegin   index of the first character in the string
+     *                        to copy.
+     * @param      srcEnd     index after the last character in the string
+     *                        to copy.
+     * @param      dst        the destination array.
+     * @param      dstBegin   the start offset in the destination array.
+     * @exception IndexOutOfBoundsException If any of the following
+     *            is true:
+     *            <ul><li><code>srcBegin</code> is negative.
+     *            <li><code>srcBegin</code> is greater than <code>srcEnd</code>
+     *            <li><code>srcEnd</code> is greater than the length of this
+     *                string
+     *            <li><code>dstBegin</code> is negative
+     *            <li><code>dstBegin+(srcEnd-srcBegin)</code> is larger than
+     *                <code>dst.length</code></ul>
+     */
+    public void getChars(int srcBegin, int srcEnd, char dst[], int dstBegin) {
+        if (srcBegin < 0) {
+            throw new StringIndexOutOfBoundsException(srcBegin);
+        }
+        if (srcEnd > value.length) {
+            throw new StringIndexOutOfBoundsException(srcEnd);
+        }
+        if (srcBegin > srcEnd) {
+            throw new StringIndexOutOfBoundsException(srcEnd - srcBegin);
+        }
+        System.arraycopy(value//新的字符串, srcBegin, dst//旧的字符串, dstBegin, srcEnd - srcBegin); //jvm底层实现：复制新的字符串到旧的字符串屁股后面去
+    }
+```
+
+3.StringBuffer
+和StringBuilder一模一样，继承了同一个类AbstractStringBuilder，唯一的不同是，StringBuffer方法同步。
+
+
+# 参考
+https://blog.csdn.net/zhangjg_blog/article/details/18319521
