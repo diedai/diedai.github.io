@@ -75,6 +75,26 @@ https://blog.csdn.net/dreamzuora/article/details/79464081
 至于其他的，比如堆的细分区域，知道怎么划分也没什么卵用。实际工作应用场景，很少去关注的这么细。
 
 
+
+---
+参考  
+堆区: 
+1.存储的全部是对象，每个对象都包含一个与之对应的class的信息。(class的目的是得到操作指令)   
+2.jvm只有一个堆区(heap)被所有线程共享，堆中不存放基本类型和对象引用，只存放对象本身 
+
+
+栈区:   
+1.每个线程包含一个栈区，栈中只保存基础数据类型的对象和自定义对象的引用(不是对象)，对象都存放在堆区中。  
+2.每个栈中的数据(原始类型和对象引用)都是私有的，其他栈不能访问。   
+3.栈分为3个部分：基本类型变量区、执行环境上下文、操作指令区(存放操作指令)。 
+
+
+方法区:   
+1.又叫静态区，跟堆一样，被所有的线程共享。方法区包含所有的static变量、final数据。 
+2.方法区中包含的都是在整个程序中永远唯一的元素，如static变量、final数据——这些数据是属于类的，不是属于对象的，或者也可以说属于对象，但是所有对象的数据都是一模一样的。
+
+http://blog.51cto.com/poseidon2011/1861375
+
 # String StringBuilder StringBuffer
 #### String
 应用场景  
@@ -232,3 +252,9 @@ https://blog.csdn.net/dreamzuora/article/details/79464081
 
 # 参考
 https://blog.csdn.net/zhangjg_blog/article/details/18319521
+
+https://blog.csdn.net/lubiaopan/article/details/4776000
+
+http://blog.51cto.com/poseidon2011/1861375
+
+https://docs.oracle.com/cd/E13150_01/jrockit_jvm/jrockit/geninfo/diagnos/garbage_collect.html
