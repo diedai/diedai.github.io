@@ -27,7 +27,7 @@ String s = "abc";
 String s = new String("abc");  
 
 # String StringBuilder StringBuffer
-1.String
+#### String
 应用场景
 少量的字符串拼接，因为String.concat()拼接方法和直接量拼接(即+拼接)一样，都会创建新的字符串对象。
 
@@ -97,7 +97,7 @@ String s = new String("abc");
     }
 ```
 
-2.StringBuilder
+#### StringBuilder
 应用场景
 大量的字符串拼接，因为不会创建新的对象。
 
@@ -177,7 +177,7 @@ String s = new String("abc");
     }
 ```
 
-3.StringBuffer
+#### StringBuffer
 和StringBuilder一模一样，继承了同一个类AbstractStringBuilder，唯一的不同是，StringBuffer方法同步。
 
 
