@@ -56,10 +56,10 @@ https://blog.csdn.net/dreamzuora/article/details/79464081
 2.static数据  
 堆-方法区。
 3.final数据  
-堆-方法区。
+堆-方法区。//注意：不要被区的名字误导了，虽然叫方法区，但是里面放的是final数据，而不是叫常量区。
 
 4.还有最后一种字面量    
-堆-方法区-常量池区。
+堆-方法区-常量池区。//注意：不要被区的名字误导了，虽然叫常量池区，但是里面放的是字面量对象，而不是final数据。
 
 这些名字很容易搞混，也记不住。最重要的是，要结合实际的例子和代码和应用，去理解这些概念，不然就真的永远只是在那里背一些概念，似是而非，自己都不理解，就面试的时候能忽悠一下。
 
@@ -249,6 +249,39 @@ http://blog.51cto.com/poseidon2011/1861375
 #### StringBuffer
 和StringBuilder一模一样，继承了同一个类AbstractStringBuilder，唯一的不同是，StringBuffer方法同步。
 
+
+# new String()得到的对象，为什么是不可变对象
+什么是不可变对象？  
+众所周知， 在Java中， String类是不可变的。那么到底什么是不可变的对象呢？ 可以这样认为：如果一个对象，在它创建完成之后，不能再改变它的状态，那么这个对象就是不可变的。不能改变状态的意思是，不能改变对象内的成员变量，包括**基本数据类型的值**不能改变，**引用类型的变量**不能指向其他的对象(即地址值不能改变)，引用类型指向的对象的状态也不能改变。
+
+---
+String为什么是不可变对象？  
+1.String类没有提供方法可以写字符数组char[] value  
+所以从外部是不能改变String的值的。  
+2.数据是final的  
+数据是final的，所以在String内部，也是不能改变数据的。
+
+```
+public final class String
+    implements java.io.Serializable, Comparable<String>, CharSequence {
+    /** The value is used for character storage. */
+    private final char value[]; //数据是final，值不能改变
+```
+
+---
+但是，String s变量命名可以被再次赋值，为什么说是不可变对象呢？  
+代码
+```
+String s = "abc";
+s = "123"; //出现赋值，变量s的值已经被改变
+```
+
+上面的代码，明明可以改变变量的值。确实是这样，改变了对象的值。但是，我们说String对象是不可变对象，指的是“abc”字面量对象是不可变的，它第一次创建的时候，被放到堆区-方法区-常量池区(即字面量区)。当s被重新赋值的时候，又创建了一个新的字面量对象"123"，这个新的字面量对象也被放到堆区-方法区-常量池区(即字面量区)，这个时候，s重新指向了新的字面量对象"123"，也就是说，s变量的值(即地址值)已经被改变。
+
+
+
+
+https://blog.csdn.net/zhangjg_blog/article/details/18319521
 
 # 参考
 https://blog.csdn.net/zhangjg_blog/article/details/18319521
