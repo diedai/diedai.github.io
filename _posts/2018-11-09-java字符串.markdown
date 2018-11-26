@@ -492,6 +492,14 @@ new 对象，注意一定是new 关键字创建的对象。例如，new String()
 2）数据数据类型  
 存放的是局部变量和值。
 
+注意：共享数据是否共享？
+只有字符串字面量对象可以共享，其他数据都不共享。基本数据类型不共享，例如，字符数组{'a','b','c'}和字符串"abc"不共享，所以，基本数据类型都是单独开辟一段内存空间，数组对象也是单独开辟一段内存空间，无论值是否相同。
+
+官方文档原文
+Primitive values do not share state with other primitive values. https://docs.oracle.com/javase/tutorial/java/nutsandbolts/datatypes.html
+
+测试的时候，也可以验证，字符数组{'a','b','c'}和字符串"abc"的对象唯一标识符不同，不仅仅如此，而且不同的字符数组，哪怕值一样，对象唯一标识符也不同。
+
 ---
 代码和内存图
 
