@@ -289,6 +289,8 @@ https://blog.csdn.net/zhangjg_blog/article/details/18319521
 http://bijian1013.iteye.com/blog/2300961
 
 注：Object.hashCode()，获取的只是对象的唯一标识符，而不是内存地址，因为java API文档只是说是对象的唯一标识符，根本没有提到内存地址。
+https://www.jianshu.com/p/be943b4958f4
+
 
 
 # 对象的唯一标识符？
@@ -483,3 +485,5 @@ https://blog.csdn.net/lubiaopan/article/details/4776000
 http://blog.51cto.com/poseidon2011/1861375
 
 https://docs.oracle.com/cd/E13150_01/jrockit_jvm/jrockit/geninfo/diagnos/garbage_collect.html
+
+https://www.cnblogs.com/xiaoxi/p/6036701.html
