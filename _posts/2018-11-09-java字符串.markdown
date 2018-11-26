@@ -427,6 +427,28 @@ https://stackoverflow.com/questions/15596694/memory-allocation-for-local-string-
 2）字符串 + 数字  //字符串拼接操作，其他不是字符串的基本数据类型都会转换为字符串，具体步骤是：1.封箱转换，即int——》Integer，具体是通过调用基本数据类型封装类的构造方法进行封装转换(打断点可以发现会进入到构造方法里) 2.封装类.toString，得到字符串 3.最后，拼接字符串。
 
 ---
+自动装箱和自动拆箱？
+1.自动装箱
+基本数据类型——》对应的包装类
+2.自动封装
+反过来。
+
+作用
+方便程序员代码的书写，不需要转来转去的。
+
+什么时候自动装箱和自动拆箱？
+官方文档说，二者都是在以下2种情况下，才会自动装箱和自动拆箱。  
+Converting a primitive value (an int, for example) into an object of the corresponding wrapper class (Integer) is called autoboxing. The Java compiler applies autoboxing when a primitive value is:
+
+Passed as a parameter to a method that expects an object of the corresponding wrapper class.//方法调用时，传值  
+Assigned to a variable of the corresponding wrapper class.//赋值
+https://docs.oracle.com/javase/tutorial/java/data/autoboxing.html
+
+除了这2种情况，还有字符串使用+进行拼接的时候，如果有非字符串类型数据，也会自动封装操作。
+
+
+
+---
 编译期间和运行期间？  
 1.编译期间  
 编译器把.java源码文件转换为.class字节码文件。  
