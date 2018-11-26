@@ -283,6 +283,198 @@ s = "123"; //出现赋值，变量s的值已经被改变
 
 https://blog.csdn.net/zhangjg_blog/article/details/18319521
 
+
+# 如何获取对象的内存地址？
+只能通过Unsafe类，没有其他方法。  
+http://bijian1013.iteye.com/blog/2300961
+
+注：Object.hashCode()，获取的只是对象的唯一标识符，而不是内存地址，因为java API文档只是说是对象的唯一标识符，根本没有提到内存地址。
+
+
+# 对象的唯一标识符？
+什么是对象的唯一标识符？  
+顾名思义，就是对象的唯一标识符。
+
+---
+与对象的内存地址有什么区别？  
+变量s占用的内存，存放的内容就是对象的内存地址。对象的内存地址值是惟一的，也就是说，对象的内存地址也可以唯一标识一个对象，但是你一般获取不到对象的内存地址值——除非使用Unsafe类。
+
+对象的唯一标识符，是唯一标识对象的另外一种方式。
+
+---
+作用?  
+因为可以唯一标识一个对象，对象的内存地址也可以唯一标识一个对象，所以可以间接的使用唯一标识符来替代对象的内存地址来唯一的标识一个对象。
+
+---
+如何获取对象的唯一标识符？  
+通过Object.hashCode()获取。
+
+如果子类重写了hashCode()方法，这个时候就不能唯一标识一个对象了，比如String.hashCode()。
+
+---
+比较操作符==  
+有2种情况：
+1.字面量
+字面量对象 == 字面量对象 //比较字面量对象的内存地址
+"abc" == "abc"; //true，因为是同一个字面量对象的内存地址
+
+字面量对象-变量1 = 字面量对象-变量2 //同上，变量占用的内存里存放的就是字面量对象的内存地址
+String s1 = "abc";
+String s2 = "abc";
+s1 == s2 //true。原因同上。
+
+2.对象
+对象1 = 对象2 //比较对象的内存地址
+
+String s1 = new String("abc");
+String s2 = new String("abc");
+s1 == s2 //false。2个变量的地址值指向的是2个不同的对象。
+
+# 如何比较对象是否相等？
+有2种方法：  
+1.比较操作符==  
+比较2个对象的内存值。
+
+2.System.identityHashCode(对象)  
+比较2个对象的唯一标识符。  
+和Object.hashCode()的作用以及获取的值是一样的，都是对象的唯一标识符，之所以有了Object.hashCode()，还要弄一个System.identityHashCode(对象)出来，是因为Object.hashCode()方法可能被子类重写。例如，String重写了hashCode()方法之后，计算得到的值就不是对象的唯一标识符。
+
+
+参考  
+here are two ways of getting information about a string memory location.   
+(1) == comparison of two String references is true if they are both null or both refer to the same String object.   
+(2) System.identityHashCode, as far as possible, returns a different value for each distinct object. 
+https://stackoverflow.com/questions/15596694/memory-allocation-for-local-string-literals
+
+
+---
+比较对象是否相等和比较对象的数据是否相等，有什么区别？  
+1.比较对象是否相等  //使用比较操作符==  
+比较的是对象的内存地址是否相等。  
+1）内存地址相等  
+对象的数据一定相等。  
+2）内存地址不等  
+对象的数据可能不相等，也可能相等。  
+
+2.比较对象的数据是否相等  //使用String.equals("abc")  
+比较的是对象的数据。   
+1）对象的数据相等  
+对象的内存地址不一定相等。  
+2）对象的数据不等  
+对象的内存地址一定不相等。  
+
+
+
+# 到底什么是字面量对象？
+#### 字符串类型的字面量对象
+字符串类型的字面量对象是什么？  
+字符串类型的字面量对象，首先是一个对象，是什么的对象呢？是String的一个对象/实例。
+
+请看java API文档。  
+The String class represents character strings. **All string literals in Java programs, such as "abc", are implemented as instances of this class**.
+https://docs.oracle.com/javase/7/docs/api/java/lang/String.html#String(java.lang.String)
+
+既然字面量对象也是String的一个对象/实例，所以字面量对象可以访问String类的方法。比如，"abc".length()。
+
+---
+字符串类型的字面量对象和new String()，到底有什么不同？  
+见下文的图。
+
+1.字面量对象  
+内存位置  
+堆-方法区-常量池区。
+
+内存内容  
+"abc" //就是数据本身。  
+
+2.new String() 对象  
+内存位置  
+堆。
+
+内存内容  
+char[] value; //字符数组变量(地址值)，它指向常量池里的字面量对象(数据本身)。
+
+
+
+
+#### 其他类型(数字、字符、布尔)的字面量对象  
+https://en.wikibooks.org/wiki/Java_Programming/Literals
+
+
+
+
+
+
+
+# 字面量池里已经有字面量，s(地址值)、new String的对象(新建的对象，在堆里)、字面量——这三者之间的关系，以及在内存中是如何分布的？
+
+![](https://user-gold-cdn.xitu.io/2018/11/24/16743d7f3ff80185?w=2222&h=1177&f=png&s=206902)
+---
+2个不同方法里的局部变量，地址值是否相同？
+相同。这也更好验证了所有的变量指向的都是字面量池里的同一个字面量对象。
+https://stackoverflow.com/questions/15596694/memory-allocation-for-local-string-literals
+
+---
++操作符  
+2个作用  
+1.一元操作符-算数运算符-加法运算符  
+加法运算操作符  
+
+2.拼接字符串操作符  
+1）字符串 + 字符串  
+2）字符串 + 数字  //字符串拼接操作，其他不是字符串的基本数据类型都会转换为字符串，具体步骤是：1.封箱转换，即int——》Integer，具体是通过调用基本数据类型封装类的构造方法进行封装转换 2.封装类.toString，得到字符串 3.最后，拼接字符串。
+
+---
+编译期间和运行期间？  
+1.编译期间  
+编译器把.java源码文件转换为.class字节码文件。  
+2.运行期间   
+jvm加载.class字节码文件到内存运行。  
+
+
+---
+错误示例  
+https://study.com/academy/lesson/java-string-constant-pool-concept-mechanism.html 
+
+这个老外写的，是错的！因为里面说，new String()没有重复使用字面量池里的字面量对象。实际上，new String()也是和变量s(String s = "abc";)一样，重复使用字面量池里的字面量对象。更准确的说，是new String()对象里的char[] value和变量s指向的字面量对象一样，因为二者占的内存存放的内容都是字面量对象的内存地址。
+
+我们看jdk源码。
+```
+//String
+/**
+     * Initializes a newly created {@code String} object so that it represents
+     * the same sequence of characters as the argument; in other words, the
+     * newly created string is a copy of the argument string. Unless an
+     * explicit copy of {@code original} is needed, use of this constructor is
+     * unnecessary since Strings are immutable.
+     *
+     * @param  original
+     *         A {@code String}
+     */
+    public String(String original) { //original是字面量对象，在new String(字面量对象)的时候，就是使用构造器构造一个新的对象，但是构造器方法的参数是字面量对象，这个字面量对象会重复使用字面量池里的字面量对象。
+        this.value = original.value; //字面量池里的字面量对象-地址值赋值给new String对象的数据value(即char[] value)。
+        this.hash = original.hash;
+    }
+```
+
+如果是字符数组，情况又是什么样子的呢？
+```
+/**
+     * Allocates a new {@code String} so that it represents the sequence of
+     * characters currently contained in the character array argument. The
+     * contents of the character array are copied; subsequent modification of
+     * the character array does not affect the newly created string.
+     *
+     * @param  value
+     *         The initial value of the string
+     */
+    public String(char value[]) { //与上面不同的是，这里的构造器参数是一个数组变量(地址值)，而不是字面量对象，所以变量c（假设定义了char[] c = {'a','b','c'}）是一个字符数组，c指向的是哪里内存的什么对象？因为数组也是对象，所以是堆里的内存。具体是堆里的哪里的内存呢？因为字符数组的数据类型是char，而基本数据类型的值不共享(https://docs.oracle.com/javase/tutorial/java/nutsandbolts/datatypes.html)，从而得知{'a','b','c'}不在字符串-字面量对象池里，事实上打印的地址值二者也是不一样的，所以刚好印证了基本数据类型的值不共享这一句话——最后总结一句话就是，{'a','b','c'}到底存在内存的哪里？堆，不是堆-方法区-常量池。
+        this.value = Arrays.copyOf(value, value.length);
+    }
+```
+
+
+
 # 参考
 https://blog.csdn.net/zhangjg_blog/article/details/18319521
 
