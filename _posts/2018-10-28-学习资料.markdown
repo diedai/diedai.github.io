@@ -28,10 +28,11 @@ https://docs.oracle.com/javase/7/docs/technotes/guides/security/jsse/JSSERefGuid
 https://docs.oracle.com/javase/7/docs/platform/serialization/spec/serialTOC.html  
 https://www.oracle.com/technetwork/java/javase/tech/serializationfaq-jsp-136699.html
 
-2.java语言规范
+2.java语言规范和jvm规范
 The Java Language Specification
 
-3.jvm规范
+ https://docs.oracle.com/javase/specs/index.html
+ 
 
 二、基础知识
 java核心编程
