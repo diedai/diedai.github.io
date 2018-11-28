@@ -1,7 +1,7 @@
 ---
 layout:     post
 title:      "支付"
-subtitle:   " \"支付、订单、钱进来\""
+subtitle:   " \"支付、收款、订单、钱进来\""
 date:       2018-10-17 06:00:00
 author:     "青乡"
 header-img: "img/post-bg-2015.jpg"
@@ -10,6 +10,9 @@ tags:
     - 支付
 ---
 
+# 3条核心主线
+
+![](https://user-gold-cdn.xitu.io/2018/11/28/16758e6588403091?w=3331&h=1713&f=png&s=291383)
 
 
 # 步骤
