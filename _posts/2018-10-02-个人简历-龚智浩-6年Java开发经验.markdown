@@ -11,9 +11,9 @@ tags:
 ---
 
 
-### 个人简历-龚智浩-6年Java开发经验
+### 个人简历-龚智浩-6年Java工作经验
 ---
--  **概况**：`计算机专业4年 + java开发经验6年` | 男 | 1988.11
+-  **概况**：`4年计算机专业 + 6年java工作经验` | 男 | 1988.11
 -  **电话**：`18617097583`  **E-mail**： `943608716@qq.com` **地址**：深圳
 - **公司**：[智付电子支付有限公司](http://www.dinpay.com)     **行业**：第三方支付/互联网金融 **职位**：Java高级工程师
 - **学校**：武汉大学珞珈学院(2008-2012)  **学历**：本科 **专业**：计算机科学与技术 **证书**：英语4级(CET-4)
@@ -64,6 +64,9 @@ tomcat、mysql、j2ee(servlet/jsp)、java、jquery/extJS。
 #### 个人网站
 1.github
 https://diedai.github.io
+
+2.微信公众号
+osNetAlgorithmSecure
 
 2.微信公众号
 osNetAlgorithmSecure
