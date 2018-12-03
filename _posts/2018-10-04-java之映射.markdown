@@ -1,7 +1,7 @@
 ---
 layout:     post
-title:      "java映射"
-subtitle:   " \"映射\""
+title:      "java之映射"
+subtitle:   " \"java映射类\""
 date:       2018-10-04 06:00:00
 author:     "青乡"
 header-img: "img/post-bg-2015.jpg"
@@ -24,7 +24,7 @@ key——》哈希算法：得到哈希值。
 2.value
 
 ---
-数组的索引
+数组的索引  
 1.数字作为索引   
 数据不多的情况下，比如，最多几万个数据。
 
@@ -40,7 +40,6 @@ key——》哈希算法：得到哈希值。
 
 具体就是让字符串——》数字的值更加分散，更加大。这样就不容易重复。
 
-
 3.key——》哈希算法：得到哈希值
 
 # 速度
@@ -52,15 +51,9 @@ key——》哈希算法：得到哈希值。
 缺点  
 数组大小固定。
 
-
-
-
-
-
 # 哈希函数
 
-## 什么是哈希函数？
-
+#### 什么是哈希函数？
 1.输入  
 任意长度的数据
 
@@ -72,52 +65,44 @@ key——》哈希算法：得到哈希值。
 
 从数学的角度看，就是一个函数。函数也是输入和输出。
 
-## MD5
+#### MD5
 
-## SHA-2
+#### SHA-2
 
-## RSA也是
-
+#### RSA也是
 只不过有秘钥。
 
 # 什么是映射?
-
 1.就是键值对
 
-2.映射=数组(数据结构) + 哈希函数(算法) 
-1）写数据   
-输入：键 
+2.映射=数组(数据结构) + 哈希函数(算法)  
+1）写数据  
+输入：键  
 输出：哈希值 //作用：作为数组的索引
 
 算法：哈希函数
 
-2）读数据   
-输入：键 
-输出：固定值 
+2）读数据  
+输入：键  
+输出：固定值  
 最终输出：键值对的值
 
 算法：哈希函数
 
-（示意图）
-
-![](http://pg60ucix6.bkt.clouddn.com/6367548-3d908987eafc5796.png)
-
+![](https://user-gold-cdn.xitu.io/2018/12/3/16774b0c6906014e?w=630&h=460&f=png&s=24344)
 
 # jdk里的映射之发展史
-
-1.最早是Hashtable 
+1.最早是Hashtable  
 早期只有Hashtable。
 
-2.后来是HashMap 
+2.后来是HashMap  
 jdk5之后。
 
 # Hashtable
-
-![](http://pg60ucix6.bkt.clouddn.com/6367548-f6c425de4d556ff9.png)
-
+![](https://user-gold-cdn.xitu.io/2018/12/3/16774b15cbd07542?w=778&h=596&f=png&s=77683)
 
 # Hashtable与HashMap的区别？
-底层原理和底层实现？ 
+底层原理和底层实现？  
 HashMap是对Hashtable的完善？具体是完善了什么东西？
 底层原理差不多，主要是细节，包括算法细节的完善。
 
@@ -130,14 +115,12 @@ HashMap是对Hashtable的完善？具体是完善了什么东西？
 旧版本jdk：Properties类也是旧版本jdk1.0，继承了HashMap，作用是专门用于从配置文件读取键值对。
 新版本jdk：HashMap没有专门用于从配置文件读取键值对的子类。但是开源项目common configuration封装了HashMap，提供了读取配置文件的功能。
 
-
 # 总结
-
-1.hash哈希/hash table 哈希表 
-2.散列/散列表 
-3.字典dictionary 
-4.关联数组associated array 
-5.map映射 
+1.hash哈希/hash table 哈希表  
+2.散列/散列表  
+3.字典dictionary  
+4.关联数组associated array  
+5.map映射  
 以上所有叫法都是映射，什么是映射？就是键值对。
 
 # 映射函数(即哈希函数)又是干什么的？有什么作用？
@@ -147,16 +130,11 @@ HashMap是对Hashtable的完善？具体是完善了什么东西？
 # 映射底层是怎么实现的？
 
 ## 哈希表
+separate chaining and open addressing.  
+1.直接定址法？  
+2.数字分析法？  
 
-separate chaining and open addressing. 
-1.直接定址法 
-? 
-2.数字分析法 
-?
-
-## 平衡二叉树(红黑树)
-
-?
+## 平衡二叉树(红黑树)？
 
 # 是否同步
 1.HashMap
