@@ -1,7 +1,7 @@
 ---
 layout:     post
-title:      "java集合"
-subtitle:   " \"集合\""
+title:      "java之集合"
+subtitle:   " \"java集合类\""
 date:       2018-10-03 06:00:00
 author:     "青乡"
 header-img: "img/post-bg-2015.jpg"
@@ -12,129 +12,49 @@ tags:
 
 
 # 是什么
+本质上是一个容器，用于放数据，存放数据的容器。 
 
+是一个数据结构，专门用于存放数据的。  
 
-
-一个容器。存放数据的容器。
-
-
-
-用于放数据。
-
-
-
-是一个数据结构，专门用于存放数据的。
-
-
-
-存放的是内存的数据。
-
-
+内存里的数据结构，存放的是内存的数据。
 
 # 作用
-
-
-
-有2个，
-
-
-
-1.往里面写数据
-
-
-
-2.读里面的数据
-
-
+有2个，  
+1.往里面写数据  
+2.读里面的数据  
 
 # 最常用的ArrayList
-
-
-
-2个主要操作，
-
-
-
-1.写数据
-
-
-
+2个主要操作，  
+1.写数据  
 首先看一下，我们平时最常用的往集合里写数据，而且一个接一个的写入数据，是按顺序的，即每次的数据都在写到集合的最后一个数据的后面，这样就不用移动任何数据，因为不是写到中间的位置，所以不用移动任何数据。
 
-
-
-2.读数据
-
-
-
-读的时候，是根据索引去读的，所有的集合数据结构当中，根据索引读数据，速度是最快的。
-
-
+2.读数据  
+读的时候，是根据索引去读的，所有的集合数据结构当中，根据索引读数据的数据结构，速度是最快的。
 
 ---
-
-
-
-底层原理
-
-
-
+底层原理  
 本质上是一个包装了各种数据类型的数组的类。
 
-
-
----
-
-
-
+因为基于索引的数据结构，底层都是数组，封装了一下而已，所以数组索引是读最快的。
+--- 
 源码
 
-
-
 # 如果需要插入数据和删除数据，从中间插入和删除，就使用链表集合LinkedList
-
-
-
-优点
-
-
-
-1.更新数据速度最快
-
-
-
-方便插入和删除
-
-
-
-因为不需要移动数据
-
-
-
-只需要改变指针
-
-
+优点  
+1.更新数据速度最快  
+方便插入和删除。因为不需要移动数据。只需要改变指针。
 
 缺点
-
-
-
 1.读数据很慢
-
-
-
 因为索引是最快的，链表集合没有索引，需要遍历数据。虽然读的时候也是通过索引，但是本质上是遍历数据，因为链表结构只能从头结点移动指针指向索引指向的数据。
-
-
 
 只能顺序查找。
 
+---
+源码
 
-
-ArrayList源码-读数据
-
-
-
+//ArrayList源码-读数据
+```
 E elementData(**int** index) {
 
 
@@ -144,12 +64,11 @@ E elementData(**int** index) {
 
 
     }
+```
 
 
-
-LinkedList源码-读数据
-
-
+//LinkedList源码-读数据
+```
 
 /**
 
@@ -217,56 +136,24 @@ LinkedList源码-读数据
 
     }
 
-
+```
 
 ---
-
-
-
-底层原理
-
-
-
+底层原理  
 双链表数据结构。
 
-
-
----
-
-
-
-源码
-
-
-
 # 数据线程安全Vector
-
-
-
-和数组集合一样。
-
-
-
+和数组集合一样。  
 唯一的不同，就是方法加了同步关键字，确保数据安全。
 
-
-
 # 数据不能重复Set
-
-
+不允许重复数据。
 
 # 数据排序
-
-
-
 List没有有排序的集合类。//List接口有sort()方法，所以实现类ArrayList和LinkedList都有实现sort()方法。
-
-
 
 Set有，TreeSet extends SortedSet。//封装了TreeMap，本质上和TreeMap一样。
 Map也有排序，TreeMap entends SortedMap。
-
-
 
 ---
 源码实现？哪一种排序算法？
@@ -379,105 +266,49 @@ public V put(K key, V value) {
 
 
 # 是否允许为null
-
-
-
 List/Set/Map，都有是否允许为null的类。
 
-
-
 # Set和List的区别？
-
-
-
 除了是否允许重复数据以外，还有其他区别吗？底层实现是一样的吗？
-
-
 
 如果是一样，那为什么不是ArraySet，LinkedSet？同步类是哪一个？所以底层实现肯定是不一样的。看名字就不知道不一样。
 
-
-
 # Set各种实现类的区别？
-
-
-
-1.排序集合TreeSet
-
-
-
+1.排序集合TreeSet  
 确保数据有序。
 
+怎么确保集合数据不重复？封装了TreeMap。和任何Map一样，TreeMap可以确保数据不重复，而且是数据有序。
 
-
-这么确保集合数据不重复？
-
-封装了TreeMap。和任何Map一样，TreeMap可以确保数据不重复，而且是数据有序。
-
-
-
-怎么确保数据有序？
-
-封装了TreeMap。
-
-
+怎么确保数据有序？封装了TreeMap。
 
 TreeMap的实现原理也是通过比较，一个数据一个数据的比较。所以速度很慢。
 
-
-
 如果不需要数据有序的要求，不要使用排序集合，因为操作数据的速度很慢。
 
-
-
-
-
-2.HashSet
-
-
-
-输入：键
-
-
-
+2.HashSet  
+输入：键  
 输出：哈希值 //作用：作为HashMap的键的索引
-
-
 
 算法：哈希函数
 
-
-
 ---
-
-
-
-底层原理
-
-
-
-使用了哈希函数。
-
-
-
+底层原理  
+使用了哈希函数。  
 具体来说，是使用了HashMap，封装了HashMap。
-
-
 
 集合的元素就是键，值是一个常量数据。
 
+```
 // Dummy value to associate with an Object in the backing Map
 
     private static final Object PRESENT = new Object();
-
+```
 
 
 
 
 //jdk源码-Hashtable
-
-
-
+```
  **private** **void** addEntry(**int** hash, K key, V value, **int** index) {
 
 
@@ -539,11 +370,10 @@ TreeMap的实现原理也是通过比较，一个数据一个数据的比较。�
 
 
     }
-
+```
 
 
 ---
-
 使用哈希函数的好处是什么？或者说，封装HashMap的好处是什么？
 
 HashMap键不能重复。所以，HashSet可以确保集合元素不重复。
@@ -567,51 +397,18 @@ if ((p = tab[i = (n - 1) & hash]) == null)
             tab[i] = newNode(hash, key, value, null);
 ```
 
-
-
-
-
-
-
 3.LinkedHashSet
-
-
-
-与HashSet的区别？
-
-
-
-与HashSet的唯一区别就是，可以保证插入顺序。但是速度更快，因为要额外维护插入顺序。
-
-
+与HashSet的区别？与HashSet的唯一区别就是，可以保证插入顺序。但是速度更快，因为要额外维护插入顺序。
 
 实现原理就是双链表。类的名字反应了类的作用。
-
-
-
 ---
-
-
-
 各自的应用场景？
 
-
-
 ---
-
-
-
-怎么确保同步？
-
-
-
+怎么确保同步？  
 Collections.同步集合(集合类型); 
 
-
-
 任何一种不能同步的集合类(Collection/Set/List/Map)，都可以通过这种方法得到一个同步的集合类。
-
-
 
 具体的代码实现是，1.原始集合 2同步对象 ，1和2的组合，实现同步。
 
@@ -668,71 +465,35 @@ public static <T> Set<T> synchronizedSet(Set<T> s) { //得到一个同步集合�
         }
 ```
 
-
-
-
-
-
-
 # 是否插入顺序
-
-
-
 1.List
-
-
-
-ArrayList
-
-
-
+ArrayList  
 是按索引，一个一个的插入，每次插入到最后。所以是插入顺序。
 
-
-
 LinkedList
-
-
-
 每次也是插入到最后。所以也是插入顺序。
 
-
-
-总结
-
-
-
+---
+总结    
 只要是每次插入到最后就是插入顺序。List都是插入顺序。
-
-
 
 那什么情况不是插入顺序？用到了Hash就不是插入顺序。
 
-
-
 # 最佳实践
-
-1.数据重复List
-
+1.数据重复List  
 数组ArrayList //读最快
 
 双链表LinkedList //更新数据最快
 
 插入数据有序 //所有集合类型都是插入有序的，只有映射才不是插入有序的，因为使用了哈希函数。
 
-
-
 同步Vector //同步
 
+数据有序TreeList //jdk没有。  
+1.为什么没有？  
 
-
-
-
-数据有序TreeList //jdk没有。
-1.为什么没有？
-？
-2.那怎么排序？
-jdk Collections提供了排序方法。
+2.那怎么排序？  
+jdk Collections提供了排序方法。  
 ```
 static <T extends Comparable<? super T>> void	sort(List<T> list)
 Sorts the specified list into ascending order, according to the natural ordering of its elements.
@@ -755,33 +516,14 @@ Returns a synchronized (thread-safe) sorted set backed by the specified sorted s
 https://dzone.com/articles/sorting-java-arraylist
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-2.数据不重复Set
-
-1）共同点，就是首先要确保数据不重复
-
+2.数据不重复Set  
+1）共同点，就是首先要确保数据不重复  
 都封装了HashMap。映射可以确保键数据不重复。
 
-
-
-2）类
-
+2）类  
 HashSet //最基本的数据不重复
 
 插入有序LinkedHashSet //1.数据不重复 2.确保插入顺序
-
-
 
 数据有序TreeSet //1.数据不重复，实现原理是Map 2.数据有序，实现原理是TreeMap
 
