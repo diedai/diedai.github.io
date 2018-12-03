@@ -12,9 +12,6 @@ tags:
     - database
 ---
 
-
-
-
 # 数据量
 单表-订单表  
 几十万/日  
@@ -52,9 +49,18 @@ oracle
 
 总共划分为几十个分区。
 
-2.list
+2.list   
+相当于是枚举enum，就是有几个固定的值。
 
-3.hash
+https://blog.csdn.net/clark_xu/article/details/44749045
+
+https://my.oschina.net/u/140722/blog/30232
+
+3.hash  
+字段——》hash——》随机选择一个分区，插入数据。
+
+http://m635674608.iteye.com/blog/2248918
+https://blog.csdn.net/weixin_36707770/article/details/54086901
 
 #### 怎么访问？
 1.range  
@@ -111,6 +117,10 @@ https://blog.csdn.net/xieyuooo/article/details/5437126
 https://www.oracle.com/technetwork/cn/articles/sql/11g-partitioning-089831-zhs.html
 
 https://blog.csdn.net/shiyong1949/article/details/59586773
+
+https://zhuanlan.zhihu.com/p/24036067?utm_source=wechat_session&utm_medium=social
+https://blog.csdn.net/xlgen157387/article/details/53976153
+http://redhat.iteye.com/blog/1379208
 
 
 
