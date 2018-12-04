@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:      "java并发包"
+title:      "java之并发包"
 subtitle:   " \"1.解决了什么问题？ 2.怎么解决的？\""
 date:       2018-10-07 07:00:00
 author:     "青乡"
@@ -152,6 +152,49 @@ final V put(K key, int hash, V value, boolean onlyIfAbsent) {
         }
 ```
 
+# 并发映射ConcurrentHashMap
+#### 作用
+并发。
+
+#### 怎么实现
+1.可重入锁ReentrantLock  
+1）手动上锁和去锁  
+可控制锁的粒度。  
+2）可控制锁的其他特性  
+比如，超时。
+
+2.分段锁Segment  
+就是把集合分成多个段Segment，每个Segment都有自己的锁。提高并发性。
+
+#### 应用场景
+多线程，访问同一个数据。
+
+#### 工作使用
+1.记录通道使用次数  
+<channelId,count>
+
+2.缓存数据  
+<key,当前时间> //缓存里有的数据过期了，但是因为某种原因没有清除，定时器任务去定时清除。
+
+3.定时器-日期
+
+#### ConcurrentHashMap，jdk7和jdk8底层实现的区别？
+1.jdk7  
+1）数组 + 链表 //和HashMap一样  
+2）分段数组 //并发：1.可重入锁 2.每个段一个锁
+```
+/**
+     * The segments, each of which is a specialized hash table.
+     */
+    final Segment<K,V>[] segments;
+```
+
+2.jdk8  
+1）数组 + 链表 //同上  
+2）synchronized + CAS //syncronized粒度更细  
+3）红黑树  //方便快速查找数据
+
+注：Hashtable，sychronized同步整个方法，锁粒度太大。
 
 # 并发包的作用
 
@@ -191,137 +234,90 @@ final V put(K key, int hash, V value, boolean onlyIfAbsent) {
 
 
 
-# 队列
-
-1.普通队列
-
-数组
-
+# 并发队列ConcurrentLinkedQueue
+#### 底层实现
+1.普通队列  
+数组  
 链表
 
-
-
 2.并发包
-
 只有链表实现ConcurrentLinkedQueue。为什么没有数组实现ConcurrentArrayQueue?
 
-
-
-#### 为什么没有数组实现ConcurrentArrayQueue?
-
-
+---
+为什么没有数组实现ConcurrentArrayQueue?
 
 ---
-
-普通队列的实现原理和底层实现？
-
-1.数组
-
-1）数组
-
-存放数据。
-
-2）数组索引指针，不是真的索引
-
+普通队列的实现原理和底层实现？  
+1.数组  
+1）数组  
+存放数据。  
+2）数组索引指针，不是真的索引  
 用于指向队列的头和尾。
 
-
-
-2.链表
-
-节点类，包含
-
-1）数据
-
-2）对象指针
-
+2.链表  
+节点类，包含  
+1）数据  
+2）对象指针  
 指向下一个节点。
 
-
-
 ---
-
 并发包-链表队列的底层实现和实现原理？
 
+#### 应用场景
+适合于，多线程访问同一个集合里的数据。
 
 
+#### 工作使用  
+定时器扫订单集合-ConcurrentLinkeQueue，来一个扫/消费一个。因为定时器是多线程，都消费这个集合里的数据。
 
+#### 是否有界/容量大小
+1.数组 //必须指定大小  
+2.链表 //无界
 
+# 阻塞队列LinkedBlockingQueue
+#### 数据结构
+顾名思义，链表。
 
+#### 底层实现
+阻塞的原理就是Object的等待和唤醒。
 
-
-
-# 阻塞队列
-
-什么是阻塞队列？
-
-1.队列
-
+---
+什么是阻塞队列？  
+1.队列  
 先进先出。
 
-
-
-2.阻塞
-
+2.阻塞  
 一直卡在那里。
 
-
-
-3.阻塞队列
-
-有个线程，一直读阻塞队列里的数据，
-
-1）来一个数据，就读一个数据
-
+3.阻塞队列  
+有个线程，一直读阻塞队列里的数据，  
+1）来一个数据，就读一个数据  
 2）不来，就阻塞在那里，等待下一个订单数据的到来
 
 上面是消费者的角度看。
 
-
-
-如果从生产者的角度看，
-
-1）一直往队列里写数据
-
-2）没写满，就一直写；
-
+如果从生产者的角度看，  
+1）一直往队列里写数据  
+2）没写满，就一直写；  
 写满了，就阻塞，直到有数据被消费，腾出了一个新的空间
 
 
-
-
-
-
-注：非阻塞队列，即普通队列Queue。
-
-1.没有数据，就返回null。
-
+注：非阻塞队列，即普通队列Queue，  
+1.没有数据，就返回null。  
 2.数据满了，就插不进去了。
 
-
-
-
-
 ---
-
-什么是生产者-消费者模式？
-
-只是一个设计模式而已。具体包括以下几个部分，
-
-1.数据从哪里读？
-
-有个定时任务去扫库，作用是读数据。
-
+什么是生产者-消费者模式？  
+只是一个设计模式而已。具体包括以下几个部分，  
+1.数据从哪里读？  
+有个定时任务去扫库，作用是读数据。  
 读数据的代码，就叫做生产者。
 
-2.数据放在哪里？
-
+2.数据放在哪里？  
 阻塞队列。
 
-3.数据写到哪里？  
-
+3.数据写到哪里？    
 写数据的代码，就叫做消费者。
-
 
 ---
 阻塞队列底层原理？怎么才能实现阻塞？  
@@ -434,36 +430,15 @@ JDK线程池ThreadPoolExecutor使用的是LinkedBlockingQueue，用来放任务�
 
 
 
+#### 应用场景
+1.支付系统-订单
+并发链表队列 ConcurrentLinkedQueue
+
+2.订单 //以下可能用到并发map ConcurrentHashMap
+3.通道
+4.订单和通道
+
 ---
-
-应用场景？
-
-1.支付系统
-
-订单的生产者-消费者。
-
-
-
-使用的是哪一个实现类？数组还是链表？
-
-因为不需要从中间插入和删除数据，所以是数组。
-
-
-
-上面说的1的这种情况是错误的，支付系统不是使用阻塞队列，消费者不是一直等待处理数据，服务器客户端程序的服务器才是使用的阻塞队列，但是支付系统的订单不是，因为订单是使用定时任务去扫描生产者放入队列的数据，使用的队列只是普通队列，而不是阻塞队列，没必要阻塞，也不是阻塞的应用场景。
-
-
-
-具体是使用的并发链表队列ConcurrentLinkedQueue。
-
-
-
-并发包为什么没有并发数组队列？但是阻塞队列是有数组和链表2种实现。
-
-
-
-
-
 2.服务器客户端程序
 
 服务器是消费者，处理请求。
@@ -474,16 +449,25 @@ JDK线程池ThreadPoolExecutor使用的是LinkedBlockingQueue，用来放任务�
 
 3.其他的任何处理数据和生产数据，都可以看作是生产者-消费者模式
 
-
-
-
+#### 工作使用
+实名认证服务。
 
 ---
+1.支付系统  
+订单的生产者-消费者。
 
-底层原理和底层实现？
+
+使用的是哪一个实现类？数组还是链表？  
+因为不需要从中间插入和删除数据，所以是数组。
 
 
+上面说的1的这种情况是错误的，支付系统不是使用阻塞队列，消费者不是一直等待处理数据，服务器客户端程序的服务器才是使用的阻塞队列，但是支付系统的订单不是，因为订单是使用定时任务去扫描生产者放入队列的数据，使用的队列只是普通队列，而不是阻塞队列，没必要阻塞，也不是阻塞的应用场景。
 
+
+具体是使用的并发链表队列ConcurrentLinkedQueue。
+
+
+并发包为什么没有并发数组队列？但是阻塞队列是有数组和链表2种实现。
 
 
 ---
@@ -504,20 +488,310 @@ JDK线程池ThreadPoolExecutor使用的是LinkedBlockingQueue，用来放任务�
 --- 
 阻塞队列与生产者-消费者设计模式的关系？
 
+#### 是否有界/容量大小
+1.ArrayBlockingQueue //必须指定大小  
+
+2.LinkedBlockingQueue //有界  
+1）默认：Interger.最大值  //因为值很多，相当于是无界  
+2）支付-订单：1000
+
+3.优先级 //无界  
+
+# 并发队列-何时使用非阻塞？何时使用阻塞？
+#### 应用场景  
+一个集合数据，先进先出。
+
+
+#### 何时使用非阻塞？
+工作使用？  
+支付-订单  //非阻塞
+
+--- 
+要点和步骤？  
+具体是怎么生产数据的？定时任务里，调用远程服务-消费者服务的服务.写数据()。  
+数据保存在哪里？根据上面一点，可以知道，数据是保存在消费者服务.并发队列。
+
+---
+代码
+
+//生产者服务：生产数据 
+```
+/**
+	 * 3 分钟执行一次，查询前2分钟到前10分钟内的订单
+	 */
+	@SuppressWarnings("unchecked")
+	public void checkUnpayOrder() {
+		try {
+			log.info("run checkUnpayOrder task start......");
+			Map<String, Object> params = new HashMap<String, Object>();
+			Calendar calendar = Calendar.getInstance();
+			calendar.add(Calendar.MINUTE, -2);
+			String endDateStr = DateFormatUtils.format(calendar, DATE_FORMAT);
+			params.put("endDate", endDateStr);
+			calendar.add(Calendar.MINUTE, -8);
+			String startDateStr = DateFormatUtils.format(calendar, DATE_FORMAT);
+			params.put("startDate", startDateStr);
+
+//			params.put("endDate", "2017-04-12 00:00:00");
+//
+//			params.put("startDate", "2017-04-09 00:00:00");
+
+			List<Order> list = (List<Order>) orderDao.find("getUnpayOrders", params);
+			if (null == list || list.size() == 0) {
+				log.info("no unpay order found!");
+				return;
+			}
+			log.info("unpay orders has found! size is " + list.size());
+			for (Order order : list) {
+				log.info("produce a unpayOrder" + order.getOrderId());
+				checkBankOrderService.checkOrderResult(order.getOrderId(), order); //生产者往里面写数据
+			}
+			log.info("run checkUnpayOrder task end......");
+		} catch (Throwable e) {
+			log.error("run checkUnpayOrder task error!", e);
+		}
+	}
+```
+
+//消费者服务：消费数据
+```
+/**
+	 * 轮询所有对队列，一旦有内容，则调用队列消费者对其进行消费
+	 */
+	@Override
+	public void run() {
+		try {
+			Map<IConsumerService, ConcurrentLinkedQueue<?>> consumerServiceMap = ConsumerServiceFactory.getConsumerServiceMap();
+			Set<IConsumerService> consumerServiceSet = consumerServiceMap.keySet();
+			for (IConsumerService consumerService : consumerServiceSet) {
+				ConcurrentLinkedQueue<?> queue = (ConcurrentLinkedQueue<?>) consumerServiceMap.get(consumerService); //非阻塞
+				while(!queue.isEmpty()){ //实际上是自己实现阻塞 //定时任务：循环消费  //每个线程消费一定数量的数据
+					log.info(consumerService.getClass().getName()+" received a element to consume.");
+					Object queueObj = queue.poll();
+					consumerService.consume(queueObj);
+					log.info(consumerService.getClass().getName()+" consumed a element.");
+				}
+			}
+		} catch (Exception e) {
+			log.error(e);
+		}
+	}
+```
+
+#### 何时使用阻塞？  
+支付-实名认证  //阻塞
+队里里的数据？线程。
+
+阻塞队列数据，在哪里何时被消费？
+
+
+何时结束？一直卡着？当数据全部消费完毕，线程结束的时候。
+
+---
+架构图  
+
+![](https://user-gold-cdn.xitu.io/2018/12/4/16779847c8f04057?w=3331&h=1713&f=png&s=352002)
+
+
+---
+代码
+
+```
+package com.gzh.dpp.identity.tss.job;
 
 
 
+import java.util.List;
+
+import java.util.concurrent.Executor;
+
+import java.util.concurrent.LinkedBlockingQueue;
+
+import java.util.concurrent.RejectedExecutionHandler;
+
+import java.util.concurrent.ThreadPoolExecutor;
+
+import java.util.concurrent.TimeUnit;
 
 
 
-# 应用场景
-1.支付系统-订单
-并发链表队列 ConcurrentLinkedQueue
+import org.apache.commons.logging.Log;
 
-2.订单 //以下可能用到并发map ConcurrentHashMap
-3.通道
-4.订单和通道
+import org.apache.commons.logging.LogFactory;
 
+
+
+import com.gzh.dpp.domain.member.verify.AccountVerify;
+
+import com.gzh.dpp.identity.tss.service.AccountAuthCheckService;
+
+
+
+/**
+
+ * @ClassName: IdCheckReulstJob
+
+ * @Description: 身份核查定时任务
+
+ */
+
+public class CAUnkownResultCheckJob {
+
+
+
+ private static Log log = LogFactory.getLog(CAUnkownResultCheckJob.class);
+
+
+
+ private AccountAuthCheckService accountAuthCheckService;
+
+
+
+ /** 10个线程检查异步订单,当队列满了之后，等待 */
+
+ protected static Executor executor = new ThreadPoolExecutor(10, 10, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(1000),
+
+   new RejectedExecutionHandler() { //队列已满，阻塞等待直到队列空闲
+
+    @Override
+
+    public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
+
+     if (!executor.isShutdown()) {
+
+      try {
+
+       executor.getQueue().put(r);  //写数据：如果队列数据已满，那么调用put()等待空余位置再写入
+
+      } catch (InterruptedException e) {
+
+       log.error(e.getMessage(), e);
+
+      }
+
+     }
+
+    }
+
+   });
+
+
+
+ public void execute() {
+
+  log.info("CAUnkownResultCheckJob start...");
+
+  try {
+
+   List<AccountVerify> list = accountAuthCheckService.getNeedCheckRecords();
+
+   for (final AccountVerify record : list) {
+
+    try {
+
+     executor.execute(new Runnable() {
+
+      @Override
+
+      public void run() {
+
+       try {
+
+        accountAuthCheckService.checkAccountResult(record.getPid(), record.getChannelCode(), record.getBankSerialno());
+
+       } catch (Exception e) {
+
+        log.error("CAUnkownResultCheckJob error:", e);
+
+       }
+
+      }
+
+     });
+
+    } catch (Exception e) {
+
+     log.error("CAUnkownResultCheckJob submit task error:" + e);
+
+    }
+
+   }
+
+  } catch (Exception e) {
+
+   log.error("CAUnkownResultCheckJob excute cause an exception:" + e);
+
+  }
+
+
+
+ }
+
+
+
+ public AccountAuthCheckService getAccountAuthCheckService() {
+
+  return accountAuthCheckService;
+
+ }
+
+
+
+ public void setAccountAuthCheckService(AccountAuthCheckService accountAuthCheckService) {
+
+  this.accountAuthCheckService = accountAuthCheckService;
+
+ }
+
+
+
+}
+
+
+
+```
+
+#### 总结
+应用场景  
+1.订单  
+数据量大  
+分离数据的生产和消费。//思想  
+
+需要自己实现阻塞。怎么实现？while(队列有数据){}
+
+数据流  
+1）生产者  
+数据库——》定时任务。 //保存到队列   
+2）消费者  
+定时任务：消费队列数据——》通道指令服务。
+
+2.实名认证
+使用jdk阻塞-LinkedBlockingQueue。
+
+定时任务定时时间？几秒钟。实名认证要快。
+
+3.转账  
+数据量小 //相对于订单而言  
+使用定时任务直接扫库。没有分离数据的生产和消费，都是在同一个服务处理。
+
+数据流  
+数据库——》定时任务——》通道指令服务。
+
+---
+生产者和消费者模式，有2种实现：  
+1.非阻塞队列ConcurrentLinkedQueue + while()  
+订单，数据量大。
+
+2.jdk阻塞队列LinkedBlockingQueue
+实名认证，数据量不大。
+
+
+
+---
+生产者和消费者的速度  
+1.生产者不能过快  
+2.消费者不能过慢  
+否则，队列集合越来越大，占满内存。
 
 
 
