@@ -12,7 +12,6 @@ tags:
 ---
 
 
-
 # 数组是连续存储吗？
 转换流程  
 key——》hashcode——》数组索引i。
@@ -172,7 +171,8 @@ http://xiaolu123456.iteye.com/blog/1485349
     int threshold;
 ```
 
-#### jdk版本？
+---
+jdk版本？
 //jdk版本？
 ```
 /**
@@ -246,7 +246,6 @@ http://xiaolu123456.iteye.com/blog/1485349
     }
 ```
 
----
 //hash()方法
 ```
 /**
@@ -423,8 +422,8 @@ http://xiaolu123456.iteye.com/blog/1485349
 
 
 # 直接地址法(线性函数)和链地址法(使用链表)？
-hash算法，有2种：
-1.线性函数
+hash算法，有2种：  
+1.线性函数  
 2.使用链表
 
 ---
@@ -440,6 +439,7 @@ f(key) = a × key + b
 节点使用链表这种数据结构。目的是为了解决冲突问题。
 
 HashMap的节点就是使用链表来解决冲突问题的。
+
 ---
 参考  
 http://www.nowamagic.net/academy/detail/3008060
