@@ -102,12 +102,33 @@ http://xiaolu123456.iteye.com/blog/1485349
 ```
 
 # 容量为什么是2的倍数？
+1.初始容量是2的倍数16  
 因为容量是移位运算。左移一位就是2~2=4，左移4位就是2~4=16。
 ```
  /**
      * The default initial capacity - MUST be a power of two.
      */
     static final int DEFAULT_INITIAL_CAPACITY = 1 << 4; // aka 16 //初始大小是16
+```
+
+2.每次扩容乘以2
+```
+/**
+     * Adds a new entry with the specified key, value and hash code to
+     * the specified bucket.  It is the responsibility of this
+     * method to resize the table if appropriate.
+     *
+     * Subclass overrides this to alter the behavior of put method.
+     */
+    void addEntry(int hash, K key, V value, int bucketIndex) {
+        if ((size >= threshold) && (null != table[bucketIndex])) {
+            resize(2 * table.length); //容量不够，扩容乘以2
+            hash = (null != key) ? hash(key) : 0;
+            bucketIndex = indexFor(hash, table.length);
+        }
+
+        createEntry(hash, key, value, bucketIndex);
+    }
 ```
 
 # 源码分析
