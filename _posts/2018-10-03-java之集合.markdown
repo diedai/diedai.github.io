@@ -150,7 +150,8 @@ E elementData(**int** index) {
 不允许重复数据。
 
 # 数据排序
-List没有有排序的集合类。//List接口有sort()方法，所以实现类ArrayList和LinkedList都有实现sort()方法。
+List没有有排序的集合类。  
+那怎么排序？使用jdk的Collections.sort(集合)
 
 Set有，TreeSet extends SortedSet。//封装了TreeMap，本质上和TreeMap一样。
 Map也有排序，TreeMap entends SortedMap。
@@ -158,7 +159,7 @@ Map也有排序，TreeMap entends SortedMap。
 ---
 源码实现？哪一种排序算法？
 
-1.ArrayList
+1.jdk7-Collections.sort(集合)
 ```
 private static void mergeSort(Object[] src,
                                   Object[] dest,
