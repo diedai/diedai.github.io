@@ -180,6 +180,19 @@ tags:
 # wait/notify和对象的内置锁之间的关系
 不管是wait还是notify，都必须先获取某个对象的内置锁。看官方文档https://docs.oracle.com/javase/7/docs/api/java/lang/Object.html#wait()。
 
+---
+官方文档   
+17.2. Wait Sets and Notification  
+**Every object, in addition to having an associated monitor, has an associated wait set. A wait set is a set of threads**.
+
+When an object is first created, its wait set is empty. Elementary actions that add threads to and remove threads from wait sets are atomic. Wait sets are manipulated solely through the methods Object.wait, Object.notify, and Object.notifyAll.
+
+Wait set manipulations can also be affected by the interruption status of a thread, and by the Thread class's methods dealing with interruption. Additionally, the Thread class's methods for sleeping and joining other threads have properties derived from those of wait and notification actions.
+
+https://docs.oracle.com/javase/specs/jls/se7/html/jls-17.html
+---
+代码
+
 //Thread.join()
 ```
 /**
