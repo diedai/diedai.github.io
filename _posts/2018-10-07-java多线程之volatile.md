@@ -133,6 +133,11 @@ volatile经常用于两个两个场景：状态标记两、double check
 2.缺点  
 没有锁，不能同步。即不能确保所谓的数据一致性。
 
+# 是否允许final
+不允许。
+
+volatile adj 挥发的，不稳定的 //所以不是常量
+
 # 参考
 http://cmsblogs.com/?p=2092
 
