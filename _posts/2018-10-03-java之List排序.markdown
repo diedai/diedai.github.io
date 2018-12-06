@@ -69,7 +69,7 @@ tags:
      */
     public static void sort(Object[] a) {
         if (LegacyMergeSort.userRequested)
-            legacyMergeSort(a); //归并排序：速度N*logN，空间双倍
+            legacyMergeSort(a); //归并排序：速度N*logN，空间双倍 //底层原理：也是不断的进行对半归并，所以速度也是logN——所有速度logN的算法都是基于对半/二分/划分
         else
             ComparableTimSort.sort(a); //快速排序：速度N*logN //底层原理：基于划分算法/二分算法
     }
