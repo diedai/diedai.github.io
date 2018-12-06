@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:      "线程本地数据ThreadLocal"
+title:      "java多线程之线程本地数据ThreadLocal"
 subtitle:   " \"每个线程都有自己的数据，互不干扰。\""
 date:       2018-10-07 09:00:00
 author:     "青乡"
