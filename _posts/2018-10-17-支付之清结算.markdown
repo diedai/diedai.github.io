@@ -1,0 +1,2571 @@
+
+---
+layout:     post
+title:      "支付之清结算"
+subtitle:   " \"什么时候清结算？支付成功之后。\""
+date:       2018-10-17 06:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - 支付
+---
+
+
+# 什么时候清结算？
+支付成功之后。
+
+# 步骤
+1.支付成功   
+
+2.结算 
+支付成功之后，就开始清算(即算账，算手续费)和结算(增加账户金额)。
+
+
+# 流程图
+
+![](https://user-gold-cdn.xitu.io/2018/12/1/16769ead33544dcf?w=3331&h=1713&f=png&s=201627)
+
+# 支付成功
+
+```
+
+@CurrentAction(serviceName = "iOrderServer", operation = "create")
+
+ public int insertDepositAndUpdateOrder(Order paySuccessOrder, OrderDCard orderDCard) {
+
+  try {
+
+   // 更新直连建行付款人账户验证状态
+
+   /*
+
+    *  付款人账户姓名、卡号、身份证号全不为空银行才会校验
+
+    */
+
+   log.info("insertDepositAndUpdateOrder orderID:" + paySuccessOrder.getOrderId());
+
+   if (("1003".equals(paySuccessOrder.getPayChannelId()) || "2160".equals(paySuccessOrder.getPayChannelId()))
+
+     && StringUtils.isNotBlank(paySuccessOrder.getOrderAttachedInfo().getCustomerName()) && StringUtils.isNotBlank(paySuccessOrder.getOrderAttachedInfo().getCustomerCardNo())
+
+     && StringUtils.isNotBlank(paySuccessOrder.getOrderAttachedInfo().getCustomerIdNumber())) {
+
+    dao.update("updateVerification", paySuccessOrder);
+
+   }
+
+
+
+   if (paySuccessOrder.getDeposit() != null && paySuccessOrder.getDeposit().doubleValue() >= 0.01) {
+
+    log.info("insert_order_deposit id=" + paySuccessOrder.getOrderDeposit().getOrderId() + " amount=" + paySuccessOrder.getOrderDeposit().getAmount());
+
+    dao.save("insert_order_deposit", paySuccessOrder.getOrderDeposit());
+
+   }
+
+
+
+   // 插入订单结算表 //为什么要在订单表之外弄一个订单结算表T_ORDER_SETTLE_INFO，不能直接对订单表进行结算吗？核心表需要一张冗余表。
+
+
+
+查询时，如果支付成功，那么
+
+1.更新订单状态(订单表.订单状态)
+
+2.记账。
+
+
+
+记账
+
+1.具体是记账到账户表的哪个字段？
+
+
+记账时，是插入一条数据到账户支付流水表T_ACCOUNT_PAYLINECACHE2。//2应该是表的设计有变更，弃用原始的T_ACCOUNT_PAYLINECACHE
+
+
+账户支付流水表T_ACCOUNT_PAYLINECACHE2，接下来的流程是什么？怎么处理？定时任务扫库，增加冻结金额余额。处理时间是？立马处理！账户总金额和冻结金额，立马加钱。
+
+
+
+什么时候往账户表里面加钱？T_ACCOUNT_PAYLINECACHE2是冻结金额加钱；后面还有一个可用余额加钱。
+
+   dao.save("insert_order_settle_info", paySuccessOrder);
+
+
+
+   // 需要拆分的订单，记录订单至t_order_split表，并开启线程，拆分订单
+
+//为什么要拆分订单表？一个订单包含多个商品，就可以拆分为多个订单。
+
+   if (OrderSplitStatus.ORDER_NO_SPLIT.getCode().equals(paySuccessOrder.getSplitStatus()) && FileChangedReloading.containsKey(paySuccessOrder.getMerchantId())) {
+
+    OrderSplitRecord orderSplit = new OrderSplitRecord();
+
+    orderSplit.setCreateDate(new Date());
+
+    orderSplit.setOrderId(paySuccessOrder.getOrderId());
+
+    orderSplit.setSplitStatus(OrderSplitStatus.ORDER_NO_SPLIT.getCode());
+
+    dao.save(orderSplit);
+
+   }else if("1".equals(paySuccessOrder.getCrossBorderFlag())|| "4".equals(paySuccessOrder.getCrossBorderFlag())) {//modify 新增批量跨境
+
+    //如果是跨境外汇，需要保存记录至t_order_exchange(父订单不记录)
+
+    OrderExchange orderExchange = new OrderExchange();
+
+    orderExchange.setOrderId(paySuccessOrder.getOrderId());
+
+    orderExchange.setMerchantId(paySuccessOrder.getMerchantId());
+
+    orderExchange.setPayDate(paySuccessOrder.getPayDate());
+
+    orderExchange.setOrderMoney(paySuccessOrder.getTxMoney());
+
+    orderExchange.setCharges(paySuccessOrder.getCharges());
+
+    orderExchange.setSellCurrency("CNY");
+
+    orderExchange.setSellAmount(paySuccessOrder.getTxMoney().subtract(paySuccessOrder.getCharges()));
+
+    orderExchange.setExchangeType("1");
+
+    orderExchange.setExchangeStatus(ExchangeStatus.APPLY.getState());
+
+    orderExchange.setGoodsName(paySuccessOrder.getOrderAttachedInfo().getGoodsName());
+
+    orderExchange.setCustomerType("0");
+
+    orderExchange.setCustomerName(paySuccessOrder.getOrderAttachedInfo().getCustomerName());
+
+    orderExchange.setCustomerIdcard(paySuccessOrder.getOrderAttachedInfo().getCustomerIdNumber());
+
+    if("4".equals(paySuccessOrder.getCrossBorderFlag())){//modify zj 新增批量跨境
+
+     String settleAccountId = findSettleAccountId(paySuccessOrder.getMerchantId(),paySuccessOrder.getMerchantOrderId());
+
+     if(!StringUtils.isBlank(settleAccountId)){
+
+      orderExchange.setSettleAccountId(settleAccountId);//商家结算账户
+
+     }
+
+    }
+
+    dao.save("insertOrderExchange",orderExchange);
+
+   }
+
+  
+
+   // 点卡支付修改点卡订单状态、增加需转账钱包app记录
+
+   if (paySuccessOrder.getGatewayId().equals("23")) {
+
+    // 将点卡抽取出来
+
+    return dCardPayHandle(paySuccessOrder, orderDCard);
+
+   }
+
+
+
+   int updateFlag = dao.update("updateOrderStatusAndPaydateAndCharge", paySuccessOrder);
+
+   if (updateFlag != 1) {
+
+    throw new BaseRuntimeException("orderService update order paySuccess failure");
+
+   }
+
+   return updateFlag;
+
+
+
+  } catch (Exception e) {
+
+   log.error("insertDepositAndUpdateOrder error", e);
+
+   throw new BaseRuntimeException("insertDepositAndUpdateOrder error", e);
+
+  }
+
+ }
+
+
+```
+
+
+# 订单结算表T_ORDER_SETTLE_INFO，在哪里被处理？
+定时任务扫库。
+
+```
+<!-- 修改t_order_settle_info表同步状态为已同步 -->
+
+    <update id="updateOrderSettleSyned" parameterClass="java.util.Map">
+
+        <![CDATA[
+
+            update
+
+                t_order_settle_info
+
+            set
+
+                SYN_STATUS = '1'
+
+            where
+
+                settle_day =#settleDay#
+
+            and
+
+                settle_date >= to_date(#startDate#,'yyyy-mm-dd hh24:mi:ss')
+
+            and
+
+                settle_date < to_date(#endDate#,'yyyy-mm-dd hh24:mi:ss')
+
+            and
+
+                Settle_status = '1'
+
+            and
+
+                SYN_STATUS =  '0'
+
+        ]]>   
+
+    </update>
+
+
+
+<!-- 修改t_order_settle_info表同步状态为已同步 -->
+
+    <update id="updateRealtimeOrderSettleSyned" parameterClass="java.util.Map">
+
+        <![CDATA[
+
+            update
+
+                t_order_settle_info
+
+            set
+
+                SYN_STATUS = '1'
+
+            where
+
+                ]]>   
+
+            <isNotNull property="settleDay">
+
+                settle_day = #settleDay#
+
+            </isNotNull>
+
+            <isNull property="settleDay">
+
+                settle_day in
+
+                      <iterate property="settleDays" open="(" close=")" conjunction=",">
+
+                        #settleDays[]#
+
+                    </iterate>
+
+            </isNull>
+
+            <![CDATA[
+
+            and
+
+                settle_date >= to_date(#startDate#,'yyyy-mm-dd hh24:mi:ss')
+
+            and
+
+                settle_date < to_date(#endDate#,'yyyy-mm-dd hh24:mi:ss')
+
+            and
+
+                Settle_status = '1'
+
+            and
+
+                SYN_STATUS =  '0'
+
+            and
+
+                merchant_id=#merchantId#
+
+            and
+
+                payclass_id=#payclassId#
+
+        ]]>   
+
+    </update>
+
+
+```
+
+//DPP-TSS-TimingTask
+```
+package com.gzh.dpp.tss.settlement.service;
+
+
+
+import java.util.Calendar;
+
+import java.util.Date;
+
+import java.util.HashMap;
+
+import java.util.List;
+
+import java.util.Map;
+
+import java.util.UUID;
+
+
+
+import org.apache.commons.lang.time.DateFormatUtils;
+
+import org.apache.commons.logging.Log;
+
+import org.apache.commons.logging.LogFactory;
+
+
+
+import com.gzh.dpp.csp.api.response.ServiceResponse;
+
+import com.gzh.dpp.csp.client.SettleService;
+
+import com.gzh.dpp.domain.order.MerchantSettle;
+
+import com.gzh.dpp.domain.system.business.Task;
+
+import com.gzh.dpp.domain.system.constant.TaskType;
+
+import com.gzh.dpp.tss.dao.IOrderDao;
+
+import com.gzh.orm.dao.IGenericDao;
+
+
+
+/**
+
+ * T+0 结算
+
+ * 12:30 结算
+
+ * @author
+
+ *
+
+ */
+
+public class T0SettleJob extends DayJob {
+
+    private static Log log = LogFactory.getLog(T0SettleJob.class);
+
+   
+
+    //任务正在执行时间，不断刷新
+
+    private static Date executingTime = null;
+
+   
+
+    private IOrderDao orderDaoImpl;
+
+    private IGenericDao orderDao;
+
+    private MerchantSettleService merchantSettleService;
+
+   
+
+    public void setMerchantSettleService(MerchantSettleService merchantSettleService) {
+
+        this.merchantSettleService = merchantSettleService;
+
+    }
+
+    public void setOrderDao(IGenericDao orderDao) {
+
+        this.orderDao = orderDao;
+
+    }
+
+    public void setOrderDaoImpl(IOrderDao orderDaoImpl) {
+
+        this.orderDaoImpl = orderDaoImpl;
+
+    }
+
+   
+
+    public void excute() {
+
+        log.info("begin T0SettleJob......");
+
+        Task task =null;
+
+        try{
+
+           
+
+            String taskDate = DateFormatUtils.format(Calendar.getInstance(), "yyyyMMdd");
+
+            task = getTask(TaskType.TASKTYPE_T0SJ, taskDate);
+
+            //如果任务已执行或正在执行
+
+            if(!super.checkTaskExecute(task, executingTime)) {
+
+                return;
+
+            }
+
+           
+
+            if(task == null) {
+
+                task = new Task();
+
+                task.setId(UUID.randomUUID().toString().replaceAll("-", ""));
+
+                task.setStartDate(new Date());
+
+                task.setStatus("1");
+
+                task.setTaskType(TaskType.TASKTYPE_T0SJ);
+
+                task.setTaskDate(taskDate);
+
+                systemDao.save(task);
+
+            } else {
+
+                systemDao.update("updateTaskStartTime", task.getId());
+
+            }
+
+           
+
+            boolean succFlag = true;
+
+            /*优化 不用先查询出需要结算的商户号，直接查询0点至12点 需要结算的订单   guozb 150302**/
+
+            Calendar startCalendar = Calendar.getInstance();
+
+            startCalendar.set(Calendar.HOUR_OF_DAY, 0);
+
+            startCalendar.set(Calendar.MINUTE, 0);
+
+            startCalendar.set(Calendar.SECOND, 0);
+
+            startCalendar.set(Calendar.MILLISECOND, 0);
+
+            Date startDate = startCalendar.getTime();
+
+            startCalendar.set(Calendar.HOUR_OF_DAY, 12);
+
+            Date endDate = startCalendar.getTime();
+
+           
+
+            /**
+
+             * 商家T0订单结算
+
+             */
+
+            List merchantSettleInfolist = orderDaoImpl.findStatOrderSettleInfo(startDate, endDate); //
+T_ORDER_SETTLE_INFO //查的是
+T_ORDER_SETTLE_INFO表，而不是
+MerchantSettle类，
+MerchantSettle类只是一个DTO数据传输类，但是查询时就已经把T_ORDER_SETTLE_INFO表——》MerchantSettle类，而不是T_ORDER_SETTLE_INFO实体类。
+
+            log.info("T0SettleJob orderSettlelist size =="+merchantSettleInfolist.size());
+
+            for (int i = 0; i < merchantSettleInfolist.size(); i++) {
+
+                MerchantSettle merchantSettle = (MerchantSettle)merchantSettleInfolist.get(i);
+
+                merchantSettle.setStatus("1");
+
+                merchantSettle.setSettleType("1");
+
+                merchantSettle.setSettleDate(new Date());
+
+                merchantSettle.setBeginDate(startDate);
+
+                merchantSettle.setEndDate(endDate);
+
+                merchantSettle.setSettleAmount(merchantSettle.getOrderAmount().subtract(merchantSettle.getCharges()).subtract(merchantSettle.getDeposit()));
+
+                merchantSettle.setRemark("T+0结算");
+
+                merchantSettle.setSettleVersion("V3.1");
+
+                executingTime = new Date();
+
+                if(!merchantSettleService.merchantSettle(merchantSettle)) {
+
+                    succFlag = false;
+
+                }
+
+            }
+
+           
+
+            if(!succFlag) {
+
+                updateTaskStatusFail(task);
+
+                return;
+
+            }
+
+           
+
+            /**
+
+             * 同步结算状态
+
+             */
+
+            List<String>  orderIds = orderDaoImpl.findSettledOrderIds(startDate, endDate);
+
+            if(null != orderIds && orderIds.size()>0) {
+
+                try {
+
+                    orderDaoImpl.updateOrderSettled(orderIds); //更新订单表.结算状态：未结算——》已结算
+
+                } catch (Exception e) {
+
+                    log.error(e.getMessage(),e);
+
+                    updateTaskStatusFail(task);
+
+                    return;
+
+                }
+
+               
+
+             try {
+
+                    orderDaoImpl.updateOrderSettleSyned(startDate, endDate); //结算完成之后，更新订单结算表的状态：未结算——》已结算 //流程：1.生成订单结算表：作用是记录操作 2.更新订单结算表状态  //为什么要搞这么复杂呢？为什么不直接在订单表里弄一个结算状态字段，直接在订单表里更新结算状态呢？订单表有结算状态字段
+private String settleStatus;// 结算状态。什么时候、在哪里更新这个字段呢？支付成功时，只更新了订单状态为成功，没有更新结算状态，因为还没有结算。他们都是在定时器任务服务里更新的，当结算完成之后更新。至于为什么要弄一个临时表出来？1.中介 2.中介的作用是，结算时的操作对象是临时表，一旦发生错误，不会导致数据丢失。任何特别重要的数据，都应该冗余备份一份。
+
+                } catch (Exception e) {
+
+                    log.error(e.getMessage(),e);
+
+                    updateTaskStatusFail(task);
+
+                    return;
+
+                }
+
+            }
+
+           
+
+            //任何一个结算子任务出错都需要等待异常处理（重新做一遍）
+
+            if(succFlag) {       
+
+                Map<String,Object> updateTaskParams = new HashMap<String,Object>();
+
+                updateTaskParams.put("id", task.getId());
+
+                updateTaskParams.put("endDate",new Date());
+
+                updateTaskParams.put("status","2");
+
+                systemDao.update("updateTask", updateTaskParams);
+
+            } else {
+
+                updateTaskStatusFail(task);
+
+            }
+
+       
+
+        } catch(Throwable e) {
+
+            if(task != null) {
+
+                updateTaskStatusFail(task);
+
+            }
+
+            log.error(e.getMessage(),e);
+
+        }
+
+       
+
+        log.info("end T0SettleJob......");
+
+    }
+
+    private void updateTaskStatusFail(Task task){
+
+        log.info(task.getId()+"==succFlag is false =="+new Date());
+
+        Map<String,Object> updateTaskParams = new HashMap<String,Object>();
+
+        updateTaskParams.put("id", task.getId());
+
+        updateTaskParams.put("endDate",new Date());
+
+        updateTaskParams.put("status","3");
+
+        systemDao.update("updateTask", updateTaskParams);
+
+    }
+
+}
+
+
+```
+
+
+//DPP-CSP-CSPSettleService
+```
+/**
+
+     * 商家结算
+
+     * @param merchantSettleBill 商家结算单
+
+     * @return
+
+     */
+
+    public ServiceResponse merchantSettle(MerchantSettle merchantSettleBill) {
+
+        ServiceResponse serviceResponse = new ServiceResponse();
+
+        log.info("Begin method : merchantSettle, parameter : " + merchantSettleBill);
+
+       
+
+        SynChargeAccountRequest scar = new SynChargeAccountRequest();
+
+        scar.setAccountType(AccountType.MERCHANT_CNY.getType());
+
+        scar.setAccountId(merchantSettleBill.getMerchantId());
+
+        if(SettleType.ORDER_SETTLE.getCode().equals(merchantSettleBill.getSettleType())) {
+
+            scar.setAccountTradetype(AccountTradeType.ORDERSETTLE.getId());
+
+        } else {
+
+            scar.setAccountTradetype(AccountTradeType.DEPOSITSETTLE.getId());
+
+        }       
+
+        scar.setAmountChanged(new BigDecimal(0));
+
+        scar.setFrozenAmountChanged(merchantSettleBill.getSettleAmount().multiply(new BigDecimal(-1)));
+
+        scar.setAvailableAmountChanged(merchantSettleBill.getSettleAmount());
+
+        scar.setBillNumber(String.valueOf(merchantSettleBill.getId()));
+
+        scar.setCheckAccountStatus(false);
+
+        scar.setCheckAvailableAmount(false);
+
+        //开启分布式
+
+        MainBusinessActivity business = BusinessServiceUtils.createBusinessForReconfirm(scar, SERVICE_NAME, MERCHANT_METHOD_NAME, HandleFailureMode.RECONFIRM.getMode());
+
+        if(business == null) {
+
+            log.warn("business serialize failure");
+
+            serviceResponse.setRetCode(SettleServiceErrorCode.MERCHANT_SETTLE_SERIALIZE_FAILURE.getCode());
+
+            serviceResponse.setRetMsg(SettleServiceErrorCode.MERCHANT_SETTLE_SERIALIZE_FAILURE.getDesc());
+
+           
+
+            log.info("End method merchantSettle, return : " + serviceResponse);
+
+            return serviceResponse;
+
+        }
+
+        String transactionId = iTransactionManager.beginTransaction(business);
+
+        if(transactionId == null) {
+
+            log.warn("create business failure");
+
+            serviceResponse.setRetCode(SettleServiceErrorCode.CREATE_MAIN_BUSINESS_FAILURE.getCode());
+
+            serviceResponse.setRetMsg(SettleServiceErrorCode.CREATE_MAIN_BUSINESS_FAILURE.getDesc());
+
+           
+
+            log.info("End method merchantSettle, return : " + serviceResponse);
+
+            return serviceResponse;
+
+        }   
+
+       
+
+        //生成商家结算订单，生成订单结算ID关联记录，修改订单表中结算状态
+
+        try {
+
+                iSettleServer.updateForMerchantSettle(merchantSettleBill);
+
+        } catch (Exception e) {
+
+            log.error("merchant settle handle exception :", e);
+
+            //分布式结束
+
+            iTransactionManager.endTransaction(transactionId);
+
+           
+
+            serviceResponse.setRetCode(SettleServiceErrorCode.MERCHANT_SETTLE_FAILURE.getCode());
+
+            serviceResponse.setRetMsg(SettleServiceErrorCode.MERCHANT_SETTLE_FAILURE.getDesc());
+
+           
+
+            log.info("End method merchantSettle, return : " + serviceResponse);
+
+            return serviceResponse;
+
+        }
+
+       
+
+        //调用账务服务
+
+        try {
+
+            accountServiceInner.synChargeAccount(scar); //入账到可用余额
+
+        } catch (Exception e) {
+
+            log.error("account handle exception", e);
+
+           
+
+            // 重新提交业务
+
+            boolean reconfirmFlag = iTransactionManager.reconfirmTransaction(transactionId);
+
+            log.info("reconfirm transaction flag:" + reconfirmFlag);
+
+            log.info("End method merchantSettle, return : " + serviceResponse);
+
+            return serviceResponse;
+
+        }
+
+       
+
+        //分布式结束
+
+        boolean endTransactionFlag = iTransactionManager.endTransaction(transactionId);
+
+        log.info("endTransaction flag" + endTransactionFlag);
+
+        log.info("End method merchantSettle, return : " + serviceResponse);
+
+        return serviceResponse;
+
+    }
+
+
+```
+
+```
+/**
+
+     * 商家结算业务处理: 结算单：根据商家号、开始时间、结束时间、支付业务类型处理 1.生成结算单 2.关联订单id和结算id 3.更改订单表状态
+
+     */
+
+    @CurrentAction(serviceName = "iSettleServer", operation = "create")
+
+    public void updateForMerchantSettle(MerchantSettle merchantSettleBill) {
+
+        log.info("Begin method updateForMerchantSettle, parameter merchantSettleBill = " + merchantSettleBill);
+
+
+
+        long settleId = merchantSettleBill.getId();
+
+        String settleType = merchantSettleBill.getSettleType();
+
+
+
+        List<String> orderList = null;
+
+        // 订单结算
+
+        if (SettleType.ORDER_SETTLE.getCode().equals(settleType)) {
+
+            orderList = selectOrderIdsBySettleInfoDate(merchantSettleBill.getMerchantId(), merchantSettleBill.getBeginDate(), merchantSettleBill.getEndDate(),
+
+                    merchantSettleBill.getPayClassId());
+
+        } else {
+
+            // 保证金结算
+
+            orderList = selectOrderIdsByDepositDate(merchantSettleBill.getMerchantId(), merchantSettleBill.getBeginDate(), merchantSettleBill.getEndDate(),
+
+                    merchantSettleBill.getPayClassId());
+
+        }
+
+        if (merchantSettleBill.getOrderCount() != orderList.size()) {
+
+            // 结算订单个数不一致
+
+            log.error("settle order count not equal");
+
+            throw new BaseRuntimeException("settle order count not equal");
+
+        }
+
+        // 生成订单与结算的关联记录
+
+        List<OrderSettle> orderSettleList = new ArrayList<OrderSettle>();
+
+        for (String orderid : orderList) {
+
+            OrderSettle orderSettle = new OrderSettle();
+
+            orderSettle.setOrderId(orderid);
+
+            orderSettle.setSettleId(settleId);
+
+            orderSettle.setSettleType(settleType);
+
+            orderSettleList.add(orderSettle);
+
+        }
+
+
+
+        // 生成商家结算记录
+
+        addMerchantSettleRecord(merchantSettleBill); //
+商家结算表t_merchant_settle
+
+        // 保存关联记录
+
+        addOrderSettleRecordBatch(orderSettleList);
+
+
+
+        if (SettleType.ORDER_SETTLE.getCode().equals(settleType)) {
+
+            // 更新结算表结算状态
+
+            int updateCount = updateSettleInfoStatus(merchantSettleBill.getMerchantId(), merchantSettleBill.getBeginDate(), merchantSettleBill.getEndDate(), merchantSettleBill
+
+                    .getPayClassId());
+
+            if (merchantSettleBill.getOrderCount() != updateCount) {
+
+                throw new BaseRuntimeException("csp.transactionservice.settleservice.ordercount-is-not-match");
+
+            }
+
+        } else {
+
+            // 保证金结算，更新结算状态
+
+            if (orderList.size() > 1000) {
+
+                int updateCount = updateSettleStatusForDeposit(merchantSettleBill.getMerchantId(), merchantSettleBill.getBeginDate(), merchantSettleBill
+
+                        .getEndDate(), merchantSettleBill.getPayClassId());
+
+                // 更新记录数与订单个数不符
+
+                if (merchantSettleBill.getOrderCount() != updateCount) {
+
+                    throw new BaseRuntimeException("csp.transactionservice.settleservice.ordercount-is-not-match");
+
+                }
+
+            } else {
+
+                updateSettleStatusForDeposit(orderList);
+
+            }
+
+        }
+
+        log.info("End method updateForMerchantSettle, update success!");
+
+    }
+
+
+```
+
+
+---
+处理订单结算表的时候，具体干了什么？
+
+```
+public void excute() {
+
+        log.info("begin T0SettleJob......");
+
+        Task task =null;
+
+        try{
+
+           
+
+            String taskDate = DateFormatUtils.format(Calendar.getInstance(), "yyyyMMdd");
+
+            task = getTask(TaskType.TASKTYPE_T0SJ, taskDate);
+
+            //如果任务已执行或正在执行
+
+            if(!super.checkTaskExecute(task, executingTime)) {
+
+                return;
+
+            }
+
+           
+
+            if(task == null) {
+
+                task = new Task();
+
+                task.setId(UUID.randomUUID().toString().replaceAll("-", ""));
+
+                task.setStartDate(new Date());
+
+                task.setStatus("1");
+
+                task.setTaskType(TaskType.TASKTYPE_T0SJ);
+
+                task.setTaskDate(taskDate);
+
+                systemDao.save(task);
+
+            } else {
+
+                systemDao.update("updateTaskStartTime", task.getId());
+
+            }
+
+           
+
+            boolean succFlag = true;
+
+            /*优化 不用先查询出需要结算的商户号，直接查询0点至12点 需要结算的订单   guozb 150302**/
+
+            Calendar startCalendar = Calendar.getInstance();
+
+            startCalendar.set(Calendar.HOUR_OF_DAY, 0);
+
+            startCalendar.set(Calendar.MINUTE, 0);
+
+            startCalendar.set(Calendar.SECOND, 0);
+
+            startCalendar.set(Calendar.MILLISECOND, 0);
+
+            Date startDate = startCalendar.getTime();
+
+            startCalendar.set(Calendar.HOUR_OF_DAY, 12);
+
+            Date endDate = startCalendar.getTime();
+
+           
+
+            /**
+
+             * 商家T0订单结算
+
+             */
+
+            List merchantSettleInfolist = orderDaoImpl.findStatOrderSettleInfo(startDate, endDate);
+
+            log.info("T0SettleJob orderSettlelist size =="+merchantSettleInfolist.size());
+
+            for (int i = 0; i < merchantSettleInfolist.size(); i++) {
+
+                MerchantSettle merchantSettle = (MerchantSettle)merchantSettleInfolist.get(i);
+
+                merchantSettle.setStatus("1");
+
+                merchantSettle.setSettleType("1");
+
+                merchantSettle.setSettleDate(new Date());
+
+                merchantSettle.setBeginDate(startDate);
+
+                merchantSettle.setEndDate(endDate);
+
+                merchantSettle.setSettleAmount(merchantSettle.getOrderAmount().subtract(merchantSettle.getCharges()).subtract(merchantSettle.getDeposit()));
+
+                merchantSettle.setRemark("T+0结算");
+
+                merchantSettle.setSettleVersion("V3.1");
+
+                executingTime = new Date();
+
+                if(!merchantSettleService.merchantSettle(merchantSettle)) {
+
+                    succFlag = false;
+
+                }
+
+            }
+
+           
+
+            if(!succFlag) {
+
+                updateTaskStatusFail(task);
+
+                return;
+
+            }
+
+           
+
+            /**
+
+             * 同步结算状态
+
+             */
+
+            List<String>  orderIds = orderDaoImpl.findSettledOrderIds(startDate, endDate);
+
+            if(null != orderIds && orderIds.size()>0) {
+
+                try {
+
+                    orderDaoImpl.updateOrderSettled(orderIds);
+
+                } catch (Exception e) {
+
+                    log.error(e.getMessage(),e);
+
+                    updateTaskStatusFail(task);
+
+                    return;
+
+                }
+
+               
+
+             try {
+
+                    orderDaoImpl.updateOrderSettleSyned(startDate, endDate);
+
+                } catch (Exception e) {
+
+                    log.error(e.getMessage(),e);
+
+                    updateTaskStatusFail(task);
+
+                    return;
+
+                }
+
+            }
+
+           
+
+            //任何一个结算子任务出错都需要等待异常处理（重新做一遍）
+
+            if(succFlag) {       
+
+                Map<String,Object> updateTaskParams = new HashMap<String,Object>();
+
+                updateTaskParams.put("id", task.getId());
+
+                updateTaskParams.put("endDate",new Date());
+
+                updateTaskParams.put("status","2");
+
+                systemDao.update("updateTask", updateTaskParams);
+
+            } else {
+
+                updateTaskStatusFail(task);
+
+            }
+
+       
+
+        } catch(Throwable e) {
+
+            if(task != null) {
+
+                updateTaskStatusFail(task);
+
+            }
+
+            log.error(e.getMessage(),e);
+
+        }
+
+       
+
+        log.info("end T0SettleJob......");
+
+    }
+
+
+
+
+//MerchantSettle类，是一段时间的订单结算表
+<!-- 结算相关 @lzg 15/11/23 -->
+
+     <!-- 统计商家订单结算(T0和普通结算) -->
+
+     <select id="statOrderSettleInfo" parameterClass="java.util.Map" resultMap="merchantSettle">
+
+        <![CDATA[
+
+            select
+
+                merchant_id,payclass_id as pay_Class_Id,  sum(charges) as charges ,sum(Tx_Money) as order_Amount,count(1) as order_Count, sum(deposit) as deposit
+
+            from
+
+                T_ORDER_SETTLE_INFO
+
+            where
+
+                settle_day =#settleDay#
+
+            and
+
+                settle_date >= #startDate# and settle_date < #endDate#
+
+            and
+
+                Settle_status='0'
+
+            group by
+
+                merchant_id,payclass_id
+
+        ]]>   
+
+    </select>
+
+
+```
+
+
+
+
+
+
+
+```
+/**
+
+     * 商家结算业务处理: 结算单：根据商家号、开始时间、结束时间、支付业务类型处理 1.生成结算单 2.关联订单id和结算id 3.更改订单表状态
+
+     */
+
+    @CurrentAction(serviceName = "iSettleServer", operation = "create")
+
+    public void updateForMerchantSettle(MerchantSettle merchantSettleBill) {
+
+        log.info("Begin method updateForMerchantSettle, parameter merchantSettleBill = " + merchantSettleBill);
+
+
+
+        long settleId = merchantSettleBill.getId();
+
+        String settleType = merchantSettleBill.getSettleType();
+
+
+
+        List<String> orderList = null;
+
+        // 订单结算
+
+        if (SettleType.ORDER_SETTLE.getCode().equals(settleType)) {
+
+            orderList = selectOrderIdsBySettleInfoDate(merchantSettleBill.getMerchantId(), merchantSettleBill.getBeginDate(), merchantSettleBill.getEndDate(),
+
+                    merchantSettleBill.getPayClassId()); //获取到的是一个集合
+
+        } else {
+
+            // 保证金结算
+
+            orderList = selectOrderIdsByDepositDate(merchantSettleBill.getMerchantId(), merchantSettleBill.getBeginDate(), merchantSettleBill.getEndDate(),
+
+                    merchantSettleBill.getPayClassId());
+
+        }
+
+        if (merchantSettleBill.getOrderCount() != orderList.size()) {
+
+            // 结算订单个数不一致
+
+            log.error("settle order count not equal");
+
+            throw new BaseRuntimeException("settle order count not equal");
+
+        }
+
+        // 生成订单与结算的关联记录
+
+        List<OrderSettle> orderSettleList = new ArrayList<OrderSettle>();
+
+        for (String orderid : orderList) {
+
+            OrderSettle orderSettle = new OrderSettle();
+
+            orderSettle.setOrderId(orderid);
+
+            orderSettle.setSettleId(settleId);
+
+            orderSettle.setSettleType(settleType);
+
+            orderSettleList.add(orderSettle);
+
+        }
+
+
+
+        // 生成商家结算记录
+
+        addMerchantSettleRecord(merchantSettleBill);
+
+        // 保存关联记录
+
+        addOrderSettleRecordBatch(orderSettleList);
+
+
+
+        if (SettleType.ORDER_SETTLE.getCode().equals(settleType)) {
+
+            // 更新结算表结算状态
+
+            int updateCount = updateSettleInfoStatus(merchantSettleBill.getMerchantId(), merchantSettleBill.getBeginDate(), merchantSettleBill.getEndDate(), merchantSettleBill
+
+                    .getPayClassId());
+
+            if (merchantSettleBill.getOrderCount() != updateCount) {
+
+                throw new BaseRuntimeException("csp.transactionservice.settleservice.ordercount-is-not-match");
+
+            }
+
+        } else {
+
+            // 保证金结算，更新结算状态
+
+            if (orderList.size() > 1000) {
+
+                int updateCount = updateSettleStatusForDeposit(merchantSettleBill.getMerchantId(), merchantSettleBill.getBeginDate(), merchantSettleBill
+
+                        .getEndDate(), merchantSettleBill.getPayClassId());
+
+                // 更新记录数与订单个数不符
+
+                if (merchantSettleBill.getOrderCount() != updateCount) {
+
+                    throw new BaseRuntimeException("csp.transactionservice.settleservice.ordercount-is-not-match");
+
+                }
+
+            } else {
+
+                updateSettleStatusForDeposit(orderList);
+
+            }
+
+        }
+
+        log.info("End method updateForMerchantSettle, update success!");
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- 商家结算(查询t_order_settle_info表) -->
+
+    <select id="selectOrderIdsBySettleInfoDate" parameterClass="java.util.Map" resultClass="java.lang.String">
+
+        <![CDATA[
+
+            select
+
+                order_id  //
+
+            from
+
+                t_order_settle_info
+
+            where
+
+                ]]>   
+
+            <isNotNull property="settleDay">
+
+                settle_day = #settleDay#
+
+            </isNotNull>
+
+            <isNull property="settleDay">
+
+                settle_day in
+
+                      <iterate property="settleDays" open="(" close=")" conjunction=",">
+
+                        #settleDays[]#
+
+                    </iterate>
+
+            </isNull>
+
+            <![CDATA[
+
+            and
+
+                MERCHANT_ID = #merchantId#
+
+            and
+
+                Settle_date >= #beginDate#
+
+            and
+
+                Settle_date < #endDate# 
+
+            and
+
+                Settle_status = '0'
+
+            and
+
+                payclass_id = #payClassId#
+
+        ]]>
+
+    </select>   
+
+
+```
+
+---
+商家结算表t_merchant_settle，接下来的流程是什么？
+1.商家结算表怎么来的？
+定时器任务：订单结算表——》商家结算表
+2.处理流程？
+生成订单结算记录，已经是最后一步了。没有其他作用，只是生成一条操作记录。
+
+结算完成——》生成商家结算记录。//已经入账到可用余额
+
+---
+为什么要生成一条操作记录？不生成不可以吗？生成了之后，这条记录有什么用？
+重要作用是记录操作。
+除此之外，还有其他作用吗？
+
+
+
+
+
+
+# 账户支付流水表，接下来的流程是什么？
+1.账户支付流水表怎么来的？
+记账：订单结算表——》账户支付流水表
+2.处理流程？
+定时器任务——》账户服务
+
+//DPP-TSS-TimingTask
+```
+package com.gzh.dpp.tss.settlement.service;
+
+
+
+import java.math.BigDecimal;
+
+import java.util.ArrayList;
+
+import java.util.Calendar;
+
+import java.util.HashMap;
+
+import java.util.Iterator;
+
+import java.util.List;
+
+import java.util.Map;
+
+import java.util.concurrent.ExecutorService;
+
+import java.util.concurrent.Executors;
+
+
+
+import org.apache.commons.logging.Log;
+
+import org.apache.commons.logging.LogFactory;
+
+
+
+import com.gzh.dpp.csp.api.response.ServiceResponse;
+
+import com.gzh.dpp.csp.client.AccountService;
+
+import com.gzh.dpp.domain.account.AccountPayLineCache;
+
+import com.gzh.orm.dao.IGenericDao;
+
+
+
+/**
+
+ * 交易记账
+
+ * @author gzh
+
+ *
+
+ */
+
+public class PayChargeAccountJob {
+
+    private static Log log = LogFactory.getLog(PayChargeAccountJob.class);
+
+   
+
+    private static ExecutorService executorService = Executors.newFixedThreadPool(3);
+
+   
+
+    private IGenericDao dao;
+
+   
+
+    public void setDao(IGenericDao dao) {
+
+        this.dao = dao;
+
+    }
+
+
+
+    public void excute() {
+
+        log.info("begin PayChargeAccountJob......");
+
+       
+
+        try {
+
+           
+
+            Map<String, Object> map = new HashMap<String, Object>();
+
+            //map.put("count", 10000);
+
+            Calendar calendar = Calendar.getInstance();
+
+            calendar.add(calendar.HOUR_OF_DAY, -4);
+
+            map.put("tradeDate",calendar.getTime());
+
+            List list = dao.find("getAccountPayLineCache", map);
+
+            log.info("payLineCache list size:" + list.size());
+
+           
+
+            Map<String, MerchantPaySumInfo> merchantMap = new HashMap<String, MerchantPaySumInfo>();
+
+            for (int i = 0; i < list.size(); i++) {
+
+                AccountPayLineCache accountPayLine =(AccountPayLineCache)list.get(i);
+
+                MerchantPaySumInfo sumInfo = merchantMap.get(accountPayLine.getMerchantId());
+
+                if(sumInfo==null){
+
+                    sumInfo = new MerchantPaySumInfo();
+
+                    sumInfo.setMerchantId(accountPayLine.getMerchantId());
+
+                    sumInfo.setAmount(accountPayLine.getTradeAmount());
+
+                    sumInfo.setCharges(accountPayLine.getCharges());
+
+                    List<AccountPayLineCache> payLineCacheList = new ArrayList<AccountPayLineCache>();
+
+                    payLineCacheList.add(accountPayLine);
+
+                    sumInfo.setPayLineCacheList(payLineCacheList);
+
+                    merchantMap.put(accountPayLine.getMerchantId(), sumInfo);
+
+                }else{
+
+                    sumInfo.setAmount(sumInfo.getAmount().add(accountPayLine.getTradeAmount()));
+
+                    sumInfo.setCharges(sumInfo.getCharges().add(accountPayLine.getCharges()));
+
+                    List<AccountPayLineCache> payLineCacheList = sumInfo.getPayLineCacheList();
+
+                    payLineCacheList.add(accountPayLine);
+
+                    sumInfo.setPayLineCacheList(payLineCacheList);
+
+                }
+
+            }
+
+           
+
+            Iterator<String> it = merchantMap.keySet().iterator();                       
+
+            while (it.hasNext()) {               
+
+                String merchantId = it.next();
+
+                MerchantPaySumInfo sumInfo = merchantMap.get(merchantId);
+
+                executorService.execute(new ChargeAccountThread(sumInfo));
+
+               
+
+            }
+
+       
+
+        } catch(Throwable e) {
+
+            log.error(e.getMessage(),e);
+
+        }
+
+       
+
+        log.info("end PayChargeAccountJob......");   
+
+    }
+
+   
+
+    private void chargeAccount(MerchantPaySumInfo sumInfo){
+
+        log.info("merchantId "+sumInfo.getMerchantId()+" charge account start ");
+
+        try {
+
+            ServiceResponse res = AccountService.batchChargeAccount(sumInfo.getMerchantId(), sumInfo.getAmount(), sumInfo.getCharges(), sumInfo.getPayLineCacheList());
+
+            if(res ==null){
+
+                log.error("merchantId "+sumInfo.getMerchantId()+" charge account , res is null ");
+
+                return;
+
+            }
+
+            if(!ServiceResponse.RETCODE_SUCCESS.equals(res.getRetCode())){
+
+                log.error("merchantId "+sumInfo.getMerchantId()+" charge account error, result code is "+res.getRetCode()+", msg is "+res.getRetMsg());
+
+                return;
+
+            }
+
+            log.info("merchantId "+sumInfo.getMerchantId()+" charge account is completed, result code is "+res.getRetCode());
+
+        } catch (Exception e) {
+
+            log.error("merchantId "+sumInfo.getMerchantId()+" charge account ,catch exception: "+e.getMessage(), e);
+
+        }
+
+    }
+
+   
+
+    class MerchantPaySumInfo{
+
+        String merchantId;
+
+        BigDecimal amount;
+
+        BigDecimal charges;
+
+        List<AccountPayLineCache> payLineCacheList;
+
+        public String getMerchantId() {
+
+            return merchantId;
+
+        }
+
+        public void setMerchantId(String merchantId) {
+
+            this.merchantId = merchantId;
+
+        }
+
+        public BigDecimal getAmount() {
+
+            return amount;
+
+        }
+
+        public void setAmount(BigDecimal amount) {
+
+            this.amount = amount;
+
+        }
+
+        public BigDecimal getCharges() {
+
+            return charges;
+
+        }
+
+        public void setCharges(BigDecimal charges) {
+
+            this.charges = charges;
+
+        }
+
+        public List<AccountPayLineCache> getPayLineCacheList() {
+
+            return payLineCacheList;
+
+        }
+
+        public void setPayLineCacheList(List<AccountPayLineCache> payLineCacheList) {
+
+            this.payLineCacheList = payLineCacheList;
+
+        }
+
+    }
+
+   
+
+    class ChargeAccountThread implements Runnable{
+
+        MerchantPaySumInfo sumInfo;
+
+        public ChargeAccountThread(MerchantPaySumInfo sumInfo){
+
+            this.sumInfo = sumInfo;
+
+        }
+
+        public void run() {
+
+            chargeAccount(sumInfo); //支付金额入账
+
+        }
+
+
+
+    }
+
+
+
+}
+
+
+```
+
+//DPP-CSP-AccountService
+```
+/**
+
+     * 缓存入账
+
+     * @param merchantId 商家号
+
+     * @param amount 总金额
+
+     * @param charges 总手续费
+
+     * @param payLineCacheList 缓存流水集
+
+     */
+
+    public void updateBatchChargeAccount(String merchantId,    BigDecimal amount, BigDecimal charges,
+
+            List<AccountPayLineCache> payLineCacheList) {
+
+       
+
+        Account account = null;
+
+        try {
+
+            //根据账户编号、账户类型查询账户信息           
+
+            account = selectAccountByIdType(merchantId, AccountType.MERCHANT_CNY.getType());
+
+           
+
+        } catch (Exception ex) {
+
+            log.error("search account exception : ", ex);
+
+            throw new BaseRuntimeException("csp.accountservice.updateSynAccount.failed");
+
+        }
+
+        //判断账户非空
+
+        if (account == null) {
+
+            log.warn("account doesn't exsit !");
+
+            throw new BaseRuntimeException("csp.accountservice.updateSynAccount.failed-account-does-not-exsit");
+
+        }
+
+       
+
+        BigDecimal accountAmount = account.getAccountAmount();
+
+        BigDecimal accountFrozenamount = account.getAccountFrozenamount();
+
+        BigDecimal accountAvailableamount = account.getAccountAvailableamount();
+
+       
+
+        List<String> orderIdList = new ArrayList<String>(); //待更新状态订单集合
+
+        List<AccountLine> accountLineList = new ArrayList<AccountLine>(); //待插入流水集合
+
+       
+
+        //遍历list，分别修改订单处理状态及流水记录
+
+        for (AccountPayLineCache accountPayLineCache : payLineCacheList) {
+
+            String orderId = accountPayLineCache.getOrderId();
+
+            //加入待更新List
+
+            orderIdList.add(orderId);
+
+           
+
+            String merId = accountPayLineCache.getMerchantId();
+
+            BigDecimal tradeAmount = accountPayLineCache.getTradeAmount();
+
+            BigDecimal charge = accountPayLineCache.getCharges();
+
+            //金额变动
+
+            BigDecimal change = tradeAmount.subtract(charge);
+
+           
+
+            AccountTradetype accountTradetype = new AccountTradetype();
+
+            accountTradetype.setAccountTradetypeId(AccountTradeType.PAYSUCCESS.getId()); //支付成功
+
+            AccountLine accountLine = new AccountLine();
+
+            accountLine.setAccountId(merId);
+
+            accountLine.setAccountTypeId(AccountType.MERCHANT_CNY.getType()); //只有商家
+
+            accountLine.setAccountAmountChanged(change);
+
+            accountLine.setAccountFrozenamountChanged(change);
+
+            accountLine.setAvailableamountChanged(new BigDecimal(0));
+
+            accountLine.setAccountTradetype(accountTradetype);
+
+            accountLine.setAccountBillnumber(orderId);
+
+            accountLine.setAccountRemark("");
+
+            accountLine.setAccountAmount(accountAmount.add(change));
+
+            accountLine.setAccountFrozenamount(accountFrozenamount.add(change));
+
+            accountLine.setAccountAvailableamount(accountAvailableamount);
+
+            //新增账户流水变动记录
+
+            //insertAccountLine(accountLine);
+
+            accountLineList.add(accountLine);
+
+           
+
+            //入账后的金额
+
+            accountAmount = accountAmount.add(change);
+
+            accountFrozenamount = accountFrozenamount.add(change);
+
+        }
+
+       
+
+        //批量插入流水记录
+
+        insertBatchAccountLine(accountLineList); //
+T_ACCOUNT_LINE
+
+       
+
+        //批量更新缓存处理状态       
+
+        for (String orderId: orderIdList) {
+
+            //更新缓存表订单处理状态
+
+            int rows = updateCacheStatus(orderId); //账户支付流水表
+
+            if (rows != 1) {
+
+                throw new BaseRuntimeException("updateCacheStatus Excption: order does not exsit or has handled!");
+
+            }
+
+        }
+
+       
+
+        Map<String, Object> updateAccountMap = new HashMap<String, Object>();       
+
+        //更新账户金额
+
+        updateAccountMap.put("amount", amount); //总金额：一段时间的账户支付流水
+
+        updateAccountMap.put("charges", charges);
+
+        updateAccountMap.put("accountId", merchantId);
+
+        updateAccountMap.put("accountType", AccountType.MERCHANT_CNY.getType());
+
+        int countRows = updateAccountByCaches(updateAccountMap);
+
+        if (countRows != 1) {
+
+            throw new BaseRuntimeException("updateAccountByCaches Excption");
+
+        }
+
+       
+
+    }
+
+
+
+//账户表：钱入账
+<!-- 根据缓存更新账户金额 总额=总额+总订单金额-总手续费  冻结金额=冻结金额+总订单金额-总手续费 -->
+
+    <update id="updateAccountByCaches" parameterClass="java.util.Map">
+
+        update t_account set Account_Amount = Account_Amount + #amount# - #charges#,
+
+        Account_FrozenAmount = Account_FrozenAmount + #amount# - #charges# , //钱入账，但是是入的冻结金额 //什么时候入可用余额？
+
+        Account_Lastdate = sysdate
+
+        where ACCOUNT_ID = #accountId# and ACCOUNT_TYPE_ID = #accountType#
+
+    </update>
+
+
+```
+
+---
+什么时候入账可用余额？
+1.手动：解冻部分金额
+总后台——》账户服务
+
+2.自动：定时任务
+结算任务。
+
+```
+private void updateSynAccount(SynChargeAccountRequest synAccountReq) {
+
+        String accountType = synAccountReq.getAccountType();
+
+        String accountId = synAccountReq.getAccountId();
+
+        String accountTradetype = synAccountReq.getAccountTradetype();
+
+        String billNumber = synAccountReq.getBillNumber();
+
+        BigDecimal amountChanged = synAccountReq.getAmountChanged();
+
+        BigDecimal frozenAmountChanged = synAccountReq.getFrozenAmountChanged();
+
+        BigDecimal availableAmountChanged = synAccountReq.getAvailableAmountChanged();
+
+       
+
+        Account account = null;
+
+        try {
+
+            //根据账户编号、账户类型查询账户信息           
+
+            account = selectAccountByIdType(accountId, accountType);
+
+           
+
+        } catch (Exception ex) {
+
+            log.error("search account exception : ", ex);
+
+            throw new BaseRuntimeException("csp.accountservice.updateSynAccount.failed");
+
+        }
+
+        //账户状态检查
+
+        if (account == null) {
+
+            log.warn("csp.accountservice.updateSynAccount.account-doesn't-exist");
+
+            throw new BaseRuntimeException("csp.accountservice.updateSynAccount.account-doesn't-exist");
+
+        }
+
+        if (synAccountReq.isCheckAccountStatus()) {
+
+            if (!AccountStatus.NORMAL.getStatus().equals(account.getAccountStatus())) {
+
+                log.warn("csp.accountservice.updateSynAccount.accountStatus-isn't-normal");
+
+                throw new BaseRuntimeException("csp.accountservice.updateSynAccount.accountStatus-isn't-normal");
+
+            }
+
+        }
+
+       
+
+        //是否判断可用金额
+
+        if (synAccountReq.isCheckAvailableAmount() && availableAmountChanged.signum() == -1) {
+
+            if (account.getAccountAvailableamount().add(availableAmountChanged).signum() == -1) {
+
+                log.warn("csp.accountservice.updateSynAccount.availableAmount-isn't-enough");
+
+                throw new BaseRuntimeException("csp.accountservice.updateSynAccount.availableAmount-isn't-enough");
+
+            }
+
+        }
+
+       
+
+        //判断账户总余额是否足够或在允许浮动范围内，由于手续费等原因，可能冻结订单时账户总金额比订单金额小
+
+        if (amountChanged.signum() == -1) {
+
+            BigDecimal tempAmount = account.getAccountAmount().add(amountChanged);
+
+            BigDecimal amountLimitRange = synAccountReq.getAmountLimitRange();
+
+            if (amountLimitRange == null || amountLimitRange.compareTo(new BigDecimal(0)) == 0) {
+
+                //变动后总余额为负
+
+                if (tempAmount.signum() == -1) {
+
+                    log.warn("csp.accountservice.updateSynAccount.amount-isn't-enough");
+
+                    throw new BaseRuntimeException("csp.accountservice.updateSynAccount.amount-isn't-enough");
+
+                }
+
+            } else {
+
+                //判断是否在浮动范围内
+
+                if (tempAmount.compareTo(synAccountReq.getAmountLimitRange()) < 0) {
+
+                    log.warn("csp.accountservice.updateSynAccount.accountAmount-is-out-of-LimitRange");                   
+
+                    throw new BaseRuntimeException("csp.accountservice.updateSynAccount.accountAmount-is-out-of-LimitRange");
+
+                }
+
+            }
+
+        }
+
+       
+
+        //同步记账
+
+        int i = updateAccount(synAccountReq);
+
+        if (i != 1) {
+
+            throw new BaseRuntimeException("csp.accountservice.updateSynAccount.updateAccountSyn-failed");
+
+        }
+
+       
+
+        //记录交易流水
+
+        AccountTradetype at = new AccountTradetype();
+
+        at.setAccountTradetypeId(accountTradetype);
+
+        AccountLine accountLine = new AccountLine();
+
+        accountLine.setAccountId(accountId);
+
+        accountLine.setAccountTypeId(accountType);
+
+        accountLine.setAccountAmountChanged(amountChanged);
+
+        accountLine.setAccountFrozenamountChanged(frozenAmountChanged);
+
+        accountLine.setAvailableamountChanged(availableAmountChanged);
+
+        accountLine.setAccountTradetype(at);
+
+        accountLine.setAccountBillnumber(billNumber);
+
+        accountLine.setAccountRemark(synAccountReq.getRemark());
+
+        accountLine.setAccountAmount(account.getAccountAmount().add(amountChanged));
+
+        accountLine.setAccountFrozenamount(account.getAccountFrozenamount().add(frozenAmountChanged));
+
+        accountLine.setAccountAvailableamount(account.getAccountAvailableamount().add(availableAmountChanged));
+
+       
+
+        insertAccountLine(accountLine);   
+
+    }
+
+
+
+
+<!-- 同步记账更新账务-->
+
+    <update id="updateAccountSyn" parameterClass="synAccountReq">
+
+        update t_account set ACCOUNT_AMOUNT = ACCOUNT_AMOUNT + #amountChanged# ,
+
+        ACCOUNT_FROZENAMOUNT = ACCOUNT_FROZENAMOUNT + #frozenAmountChanged#,
+
+        ACCOUNT_AVAILABLEAMOUNT = ACCOUNT_AVAILABLEAMOUNT + #availableAmountChanged#,
+
+        ACCOUNT_LASTDATE = sysdate
+
+        where ACCOUNT_ID = #accountId# and ACCOUNT_TYPE_ID = #accountType#
+
+        <isEqual  prepend="AND" property="checkAccountStatus" compareValue="true" >
+
+            ACCOUNT_STATUS = 'N'
+
+        </isEqual>
+
+        <isLessThan property="amountChanged" compareValue="0" >
+
+            <isNull prepend="AND" property="amountLimitRange">
+
+                <![CDATA[  ACCOUNT_AMOUNT + #amountChanged# >= 0   ]]>
+
+            </isNull>
+
+            <isNotNull prepend="AND" property="amountLimitRange">
+
+                <![CDATA[  ACCOUNT_AMOUNT + #amountChanged# >= #amountLimitRange#   ]]>
+
+            </isNotNull>
+
+        </isLessThan>
+
+        <isEqual  prepend="AND" property="checkAvailableAmount" compareValue="true"    >
+
+            <![CDATA[  ACCOUNT_AVAILABLEAMOUNT + #availableAmountChanged# >= 0   ]]>
+
+        </isEqual>
+
+    </update>
+
+
+```
+
+```
+/**
+
+      * @Title: updateAccountMoney
+
+      * @Description: 更新冻结解冻账户金额
+
+      * @param @return  
+
+      * @return String  
+
+      * @throws
+
+      */
+
+    @AuthAnnotation(action="accountManage")
+
+    public String updateAccountMoney() {
+
+        try{
+
+            String accountIdPage = this.getRequestParameter("accountIdPage");
+
+            String accountTypeId = this.getRequestParameter("accountTypeId");
+
+            String remark = getRequestParameter("remark");
+
+            String freezeState = getRequestParameter("freezeState");
+
+            String moneymoney = getRequestParameter("moneymoney");
+
+           
+
+            Account accountTemp = this.findAccountByID(accountTypeId,accountIdPage);
+
+            //BigDecimal deposit = orderDepositService.queryDeposit(accountTemp.getAccountId());
+
+            Object nosettle = (null == accountTemp) ? 0 : accountTemp.getAccountAvailableamount().toString();
+
+
+
+            String accountResult = StringUtils.EMPTY;
+
+            //操作id
+
+            String userId = StringUtils.EMPTY;
+
+            SysUser user = ((SysUser) this.getSessionAttribute("user"));
+
+            if(user!=null){
+
+                userId = user.getId();
+
+            }
+
+            if(StringUtils.isEmpty(freezeState)){
+
+                accountResult = this.getText("com.gzh.dpp.ms.web.action.membermanage.AccountManageAction.Invalidrequest");     //非法请求!
+
+                getHttpSession().setAttribute("accountResult",accountResult);
+
+                return SUCCESS;
+
+            }
+
+            //添加操作流水
+
+            String operateType =StringUtils.EMPTY;
+
+            String frezzeStatus = OperateTypeEnum.OPERATETYPE_ACCOUNT_FREEZEMONEY.getStatus();
+
+            String unFrezzeStatus = OperateTypeEnum.OPERATETYPE_ACCOUNT_UNFREEZEMONEY.getStatus();
+
+            if(frezzeStatus.equals(freezeState)){
+
+                operateType = frezzeStatus;
+
+                if(Double.valueOf(nosettle.toString())<Double.valueOf(moneymoney)){
+
+                    accountResult =this.getText("com.gzh.dpp.ms.web.action.membermanage.AccountManageAction.Frozenamountshallnotgreaterthanavailableamount");    //冻结金额不能大于可用金额!
+
+                }else{
+
+                    //调用CSP接口
+
+                    ServiceResponse response = AccountService.freezeOrUnFreezePartAccount(accountIdPage, accountTypeId,new BigDecimal(moneymoney).setScale(2,BigDecimal.ROUND_HALF_UP),FREEZE_OPERATE_TYPE,remark);
+
+                    if(response.getRetCode().equals(ServiceResponse.RETCODE_SUCCESS)){
+
+                        accountResult =this.getText("com.gzh.dpp.ms.web.action.membermanage.AccountManageAction.Successfullyfrozenaccountamount");    //冻结账户金额成功!
+
+                        //添加冻结解冻账户金额操作流水
+
+                        addAccountOpterateLine(accountIdPage, remark, userId, operateType,moneymoney);
+
+                        //添加日志
+
+                        addManageLog(new StringBuffer().append("用户 ").append(userId).append(" 更新冻结账户金额帐号为：")
+
+                                .append(accountTemp.getAccountName()).append("的账户 时间为：")
+
+                                .append(DateUtils.formatCurrent(Calendar.getInstance().getTime())).toString(), "账户管理更新冻结账户金额-冻结");
+
+                    }else{
+
+                        accountResult =response.getRetMsg();
+
+                    }
+
+       
+
+                }
+
+            }else if(unFrezzeStatus.equals(freezeState)){
+
+                operateType = unFrezzeStatus;
+
+                if(accountTemp.getAccountFrozenamount().doubleValue()<Double.valueOf(moneymoney)){
+
+                    accountResult =this.getText("com.gzh.dpp.ms.web.action.membermanage.AccountManageAction.Unfrozenamountshallnotgreaterthanfrozenamount");    //解冻金额不能大于冻结金额!
+
+                }else{
+
+                    //调用CSP接口
+
+                    ServiceResponse response = AccountService.freezeOrUnFreezePartAccount(accountIdPage, accountTypeId,new BigDecimal(moneymoney).setScale(2,BigDecimal.ROUND_HALF_UP), UNFREEZE_OPERATE_TYPE,remark);
+
+                    if(response.getRetCode().equals(ServiceResponse.RETCODE_SUCCESS)){
+
+                        accountResult =this.getText("com.gzh.dpp.ms.web.action.membermanage.AccountManageAction.Successfullyunfrozenaccountamount");    //解冻账户金额成功!
+
+                        //添加冻结解冻账户金额操作流水
+
+                        addAccountOpterateLine(accountIdPage, remark, userId, operateType,moneymoney);
+
+                        //添加日志
+
+                        addManageLog(new StringBuffer().append("用户 ").append(userId).append(" 更新解冻账户金额帐号为：")
+
+                                .append(accountTemp.getAccountName()).append("的账户 时间为：")
+
+                                .append(DateUtils.formatCurrent(Calendar.getInstance().getTime())).toString(), "账户管理更新解冻账户金额-解冻");
+
+                    }else{
+
+                        accountResult =response.getRetMsg();
+
+                    }
+
+           
+
+                }
+
+       
+
+            }
+
+       
+
+            getHttpSession().setAttribute("accountResult",accountResult);
+
+       
+
+        }catch (Exception e) {
+
+            log.error("更新冻结解冻账户金额",e);
+
+        }
+
+         return SUCCESS;
+
+    }
+
+
+```
+
+```
+@Override
+
+    public void updatePartFrozenOrUnfrozenAccount(Account account, BigDecimal opMoney, String remark) {
+
+        String accountId = account.getAccountId();
+
+        String accountType = account.getAccountTypeId();
+
+        Map<String, Object> map = new HashMap<String, Object>();
+
+        map.put("accountType", accountType);
+
+        map.put("accountId", accountId);
+
+        map.put("opMoney", opMoney);
+
+        int result;
+
+        try {
+
+            result = dao.update("partFrozenOrUnfrozenAccount", map); //入账：入账金额部分-冻结金额——》入账金额部分-可用金额
+
+        } catch (Exception ex) {
+
+            log.error("updateAccountStatus exception", ex);
+
+            throw new BaseRuntimeException("updateAccountStatus exception", ex);
+
+        }
+
+        if(result<0){
+
+            log.error("partFrozenOrUnfrozenAccount failed");
+
+            throw new BaseRuntimeException("updateAccountStatus exception");
+
+        }
+
+       
+
+        //记录交易流水 //gzh，这个只是流水记录，除此之外，没有其他作用
+
+        AccountTradetype at = new AccountTradetype();
+
+        String tradeType;
+
+        BigDecimal frozenAmount = opMoney.negate();
+
+        BigDecimal availableAmount = opMoney;
+
+        if(opMoney.compareTo(new BigDecimal("0"))<0){//冻结
+
+            tradeType = AccountTradeType.PARTFROZEN.getId();
+
+        }else{//解冻
+
+            tradeType = AccountTradeType.PARTUNFROZEN.getId();
+
+        }
+
+        at.setAccountTradetypeId(tradeType);
+
+        AccountLine accountLine = new AccountLine();
+
+        accountLine.setAccountId(accountId);
+
+        accountLine.setAccountTypeId(accountType);
+
+        accountLine.setAccountAmountChanged(new BigDecimal("0"));
+
+        accountLine.setAccountFrozenamountChanged(frozenAmount);
+
+        accountLine.setAvailableamountChanged(availableAmount);
+
+        accountLine.setAccountTradetype(at);
+
+        accountLine.setAccountBillnumber(DateFormatUtils.format(new Date(), "yyyyMMddHHmmss"));
+
+        accountLine.setAccountRemark(remark);
+
+        accountLine.setAccountAmount(account.getAccountAmount());
+
+        accountLine.setAccountFrozenamount(account.getAccountFrozenamount().add(frozenAmount));
+
+        accountLine.setAccountAvailableamount(account.getAccountAvailableamount().add(availableAmount));
+
+        try {
+
+            insertAccountLine(accountLine);
+
+        } catch (Exception e) {
+
+            log.error("updateForAdjustAccount.insertAccountLine() exception", e);
+
+            throw new BaseRuntimeException("updateForAdjustAccount.insertAccountLine() exception", e);
+
+        }
+
+    }
+
+
+
+
+<!-- 部分冻结或解冻账户资金 -->
+
+    <update id="partFrozenOrUnfrozenAccount" parameterClass="java.util.Map">
+
+        update t_account set Account_AvailableAmount = Account_AvailableAmount+#opMoney#,
+
+        Account_FrozenAmount = Account_FrozenAmount-#opMoney#
+
+        where ACCOUNT_ID = #accountId# and ACCOUNT_TYPE_ID = #accountType#
+
+    </update>
+
+
+
+//注：这里应该是操作的时候，手动填写一个解冻金额——即解冻部分金额。
+
+
+```
+
+
+# 账户服务和结算服务的区别？
+1.账户服务
+作用
+账户金额的增删查改。
+
+架构
+类似于和相当于是支付/转账的指令服务。
+
+2.结算服务
+作用
+管理与账户服务相关的业务。相当于是交易服务TransactionService，相当于是中介。
+
+流程
+定时器任务服务——》结算服务——》账户服务
+
+
+# 结算
+为什么不直接结算订单呢？中间经历了很多个临时的表？
+1.预支付订单——》订单
+
+2.支付成功
+1）更新订单状态
+订单结算表
+2）记账
+记账时，是插入一条数据到账户支付流水表T_ACCOUNT_PAYLINECACHE2。//2应该是表的设计有变更，弃用原始的T_ACCOUNT_PAYLINECACHE
+
+
+3.订单结算表
+定时器任务-结算：
+操作并且更新订单结算表.结算状态。
+更新订单表.结算状态。
+
+4.账户支付流水表
+
+
+
+# 订单为什么要拆分？
+一个订单多个商品。
+
+# 订单结算状态
+什么时候在哪里更新订单表.结算状态？
+//结算服务
+```
+<update id="batchUpdateSettleStatusForOrder" parameterClass="java.lang.String">
+
+        <![CDATA[
+
+            update t_order set Settle_status = '1' where order_id=#orderId#
+
+        ]]>
+
+    </update>
+
+
+
+<update id="updateSettleStatusForOrder" parameterClass="java.util.Map">
+
+        <![CDATA[
+
+            update t_order set Settle_status = '1' where MERCHANT_ID = #merchantId#
+
+            and Settle_date >= to_date(#beginDate#,'yyyy-mm-dd hh24:mi:ss') and Settle_date < to_date(#endDate#,'yyyy-mm-dd hh24:mi:ss')
+
+            and Settle_status = '0' and payclass_id = #payClassId#
+
+        ]]>
+
+    </update>
+
+```
+
+//定时器任务服务 //是这里更新的，不是上面的sql
+```
+<!-- 修改订单表结算状态为已结算 -->
+
+    <update id="updateOrderSettled" parameterClass="java.lang.String">
+
+        <![CDATA[
+
+            update
+
+                t_order
+
+            set
+
+                SETTLE_STATUS = '1'
+
+            where
+
+                order_id = #orderId#
+
+            and
+
+                SETTLE_STATUS = '0'
+
+        ]]>   
+
+    </update>
+
+
+```
+
+
+# 2套东西，1.订单结算表 2.账户支付流水表
+#### 订单结算表
+入账到可用余额。
+
+#### 账户支付流水表
+入账到冻结金额。
+
+#### 总结
+二者的联系是什么？为什么要搞两套东西？
+1.即时加钱
+支付流水表。给账户总金额和冻结金额加钱。——》账户金额显示数字增加
+
+2.结算加钱
+订单结算表。给可用余额加钱。——》允许提现
+
+# 清算
+算账，算钱，算手续费。
+
+
+
+
+
+
