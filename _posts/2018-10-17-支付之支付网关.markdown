@@ -22,8 +22,8 @@ tags:
 ---
 流程图
 
-![](https://user-gold-cdn.xitu.io/2018/12/7/16786ed3aa298344?w=3331&h=1713&f=png&s=222897)
 
+![](https://user-gold-cdn.xitu.io/2018/12/7/1678716615c6ed78?w=3331&h=1713&f=png&s=243498)
 #### 上游通道
 通知  
 1.同步通知  
