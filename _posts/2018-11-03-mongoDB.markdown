@@ -7,8 +7,18 @@ author:     "青乡"
 header-img: "img/post-bg-2015.jpg"
 catalog: true
 tags:
+    - mongoDB
     - cache
+    - 缓存
 ---
+
+# 是什么？
+磁盘数据库。
+
+# 为什么要使用？
+为什么不使用关系数据库mysql/oracle？关系数据库太重了，建立和释放连接太耗时。
+
+为什么不使用内存数据库memcache？不重要的大数据。
 
 
 # 工作使用
