@@ -36,7 +36,7 @@ tags:
 
 ---
 步骤  
-1.生成订单
+1.生成订单 //把订单数据放到缓存  
 cache.add(token,order); //token传给商家客户端
 
 //代码
@@ -83,7 +83,7 @@ cache.add(token,order); //token传给商家客户端
 	}
 ```
 
-2.支付
+2.支付  //从缓存取订单数据  
 cache.get(token);
 
 ```
