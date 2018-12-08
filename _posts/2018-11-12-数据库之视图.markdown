@@ -13,8 +13,22 @@ tags:
 
 
 # 作用？解决什么问题？
+官方文档   
+**Overview of Views**   
+A view is a **tailored** presentation of the data contained in one or more tables or other views. A view takes the output of a query and treats it as a table. Therefore, a view can be thought of as a stored query or a virtual table. You can use views in most places where a table can be used.
+
+For example, the employees table has several columns and numerous rows of information. If you want users to see only five of these columns or only specific rows, then you can create a view of that table for other users to access.
+
 
 ![](https://user-gold-cdn.xitu.io/2018/12/8/1678bc1edd583d9f?w=651&h=320&f=gif&s=16270)
+
+---
+总结   
+官方文档，有个单词解释的特别好，就是对实际表的数据进行剪裁tailored。  
+1.垂直  
+按字段   
+2.水平  
+按记录
 
 # 怎么解决？
 
