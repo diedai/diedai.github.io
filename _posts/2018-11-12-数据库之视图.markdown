@@ -1,0 +1,79 @@
+---
+layout:     post
+title:      "数据库之视图"
+subtitle:   " \" 1.基于实际表创建一个虚拟表，这个虚拟表包含了实际表的部分字段(有的字段不让看)，或者部分记录(有的记录不让看) 2.视图的数据，完全来自实际表。对视图的操作，就是对实际表的数据的操作。\""
+date:       2018-11-11 07:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - database
+    - 数据库
+---
+
+
+# 作用？解决什么问题？
+
+![](https://user-gold-cdn.xitu.io/2018/12/8/1678bc1edd583d9f?w=651&h=320&f=gif&s=16270)
+
+# 怎么解决？
+
+# 是什么？
+
+# 为什么叫虚拟表virtual table？
+因为视图的数据，完全来自实际表。  
+对视图的操作，就是对实际表的数据的操作。
+
+# 应用场景
+
+# 工作使用
+
+```
+CREATE OR REPLACE VIEW V_JZPT_CASESORCETYPE
+(dicid, typecode, diccode, dicname, parentid, treelevel, orderno)
+AS
+SELECT dicid,
+            typecode,
+            diccode,
+            trim(dicname),
+            (CASE
+                WHEN SUBSTR (diccode, 3, 4) = '0000'
+                THEN
+                   '0'
+                WHEN SUBSTR (diccode, 5, 2) = '00'
+                THEN
+                   SUBSTR (diccode, 1, 2) || '0000'
+                ELSE
+                   SUBSTR (diccode, 1, 4) || '00'
+             END)
+               AS parentid,
+            (CASE
+                WHEN SUBSTR (diccode, 3, 4) = '0000' THEN '一级'
+                WHEN SUBSTR (diccode, 5, 2) = '00' THEN '二级'
+                ELSE '三级'
+             END)
+               AS treelevel,
+            orderno
+       FROM t_jzpt_dicdetail //基于实际表，创建视图
+      WHERE enabled = '1' AND typecode = 'D00029'
+   ORDER BY diccode;
+comment on table V_JZPT_CASESORCETYPE is '警综平台－案件类别';
+comment on column V_JZPT_CASESORCETYPE.DICID is '案件类别ID';
+comment on column V_JZPT_CASESORCETYPE.TYPECODE is '字典类型代码';
+comment on column V_JZPT_CASESORCETYPE.DICCODE is '案件类别代码';
+comment on column V_JZPT_CASESORCETYPE.DICNAME is '案件类别名称';
+comment on column V_JZPT_CASESORCETYPE.PARENTID is '父级案件类别ID';
+comment on column V_JZPT_CASESORCETYPE.TREELEVEL is '案件类型级别';
+comment on column V_JZPT_CASESORCETYPE.ORDERNO is '排序号';
+```
+
+# 怎么使用
+1.创建  //基于实际表创建一个虚拟表，这个虚拟表包含了实际表的部分字段(有的字段不让看)，或者部分记录(有的记录不让看)
+
+2.查询 //视图主要用于查询
+和查询实际表完全一样。
+
+3.其他操作 //查询之外的操作比较少使用
+
+# 参考
+https://docs.oracle.com/cd/B28359_01/server.111/b28318/schema.htm#CNCPT311
