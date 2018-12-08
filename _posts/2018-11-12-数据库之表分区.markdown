@@ -9,7 +9,6 @@ catalog: true
 tags:
     - database
     - 数据库
-    - 表分区
 ---
 
 
