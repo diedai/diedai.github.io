@@ -13,7 +13,7 @@ tags:
 
 # jdk源码
 1.网址  
-http://jdk.java.net/java-se-ri/7 //openjdk-7u75-src-b13-18_dec_2014.zip 安装jdk的时候 最后版本对应 不能断点是乱的 因为这里的下载每个版本只有1个版本 没有子版本 而且子版本不是最新
+http://jdk.java.net/java-se-ri/7 //openjdk-7u75-src-b13-18_dec_2014.zip 安装jdk的时候 最好版本对应 不然断点是乱的 因为这里的下载每个版本只有1个版本 没有子版本 而且子版本不是最新
 http://jdk.java.net/java-se-ri/8 //openjdk-8u40-src-b25-10_feb_2015.zip
 
 
@@ -46,6 +46,20 @@ The source code of the RI binaries is available under the GPLv2 in a single zip 
 https://www.oracle.com/technetwork/java/javase/downloads/java-archive-javase8-2177648.html
 
 jdk8 各个版本 各个子版本都有
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
