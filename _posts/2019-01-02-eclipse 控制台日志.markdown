@@ -1,0 +1,30 @@
+---
+layout:     post
+title:      "eclipse 控制台日志"
+subtitle:   " \" jdk源码\""
+date:       2019-01-02 07:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - eclipse
+    - IDE
+---
+
+
+# 步骤
+1.运行或者调试   
+2.配置目录/文件  
+3.运行  
+控制台可以看到输出日志 而且还可以看大输出到哪个文件
+
+# mac
+不同操作系统 只是目录不一样 其他一样
+
+file:///var/folders/m9/yshd99dx1g38gtyxvv3k201r0000gn/T/WizNote/7e1c88f0-94bd-448c-a07d-8a2b27624197/index_files/52979564.png
+![](https://user-gold-cdn.xitu.io/2019/2/1/168a6c6077edfc6b?w=3360&h=2100&f=png&s=1676102)
+# 总结
+只能配置单个项目的日志
+
+# 参考
+https://blog.csdn.net/u010882234/article/details/70916844
