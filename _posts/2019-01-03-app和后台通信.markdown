@@ -1,8 +1,8 @@
 ---
 layout:     post
-title:      "eclipse 控制台日志"
-subtitle:   " \" jdk源码\""
-date:       2019-01-02 07:00:00
+title:      "app和后台通信"
+subtitle:   " \" 不同进程通信\""
+date:       2019-01-03 06:00:00
 author:     "青乡"
 header-img: "img/post-bg-2015.jpg"
 catalog: true
