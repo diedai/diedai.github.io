@@ -1,0 +1,540 @@
+---
+layout:     post
+title:      "java字符串"
+subtitle:   " \"1.字符串直接量 2.String 3.StringBuilder 4.StringBuffer \""
+date:       2018-11-09 07:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - java
+---
+
+
+# 如何创建字符串
+1.直接量 //从字符串池里找，值存在，则不创建对象；值不存在，才创建对象  
+2.new //一定会创建对象
+
+---
+代码和例子  
+1.直接量  
+String s = "abc";
+
+2.new  
+String s = new String("abc");  
+
+# 直接量(即字面量)和new，在内存里占的内存的区别
+1.直接量 //直接量和new String()一样，都是创建了一个新的对象(字面量对象)，所以都是放在堆区。只不过堆区又细分为一般的堆区和方法区，方法区包含了字面量、final数据。
+
+2.new //堆区
+
+---
+看图  
+1.直接量  
+如果数据池没有这个数据，就创建一个对象，放到数据池里。  
+s变量是地址值，指向数据库池里的对象abc。
+
+2.new  
+一定会创建一个String对象，如果数据池有这个数据，对象本身(即对象的数据-字符数组char[] value)就指向这个数据(即字面量对象)，如果没有数据，就把数据放到数据池，这个时候指向的是数据池里的新的数据对象(即字面量对象)。
+
+变量s(地址值)，不管是哪种情况，指向的都是对象本身。而且与1的字面量的地址值不一样。因为字面量对象占的内存是堆-方法区(字面量对象)，而String对象占的内存是堆。
+
+
+![](https://user-gold-cdn.xitu.io/2018/11/23/167405fddbc86fad?w=885&h=471&f=png&s=48613)
+https://blog.csdn.net/dreamzuora/article/details/79464081
+
+
+---
+什么是堆-方法区？  
+首先，方法区也是属于堆，是堆区的一个细分。
+
+其次，什么是堆？所有线程都可以访问的内存区域就叫堆区。对象/实例是放在堆，对象/实例包含了数据，我们说所有线程都可以访问对象/实例的数据，就刚好互相验证了这一点，即所有线程都可以访问的内存区域叫做堆，堆有对象/实例，所以所有线程都可以访问对象和实例，具体是访问对象和实例的什么呢？当然是对象/实例的数据和方法。也正因为这个原因，才导致堆里的对象/实例(具体来说是对象的数据)有线程安全的问题。
+
+除了对象/实例放在堆之外，还有其他数据放在堆里吗？我们上面提到的是对象的数据，但是对象的数据包含了好几种类型的数据，  
+1.普通数据   
+堆。
+2.static数据  
+堆-方法区。
+3.final数据  
+堆-方法区。//注意：不要被区的名字误导了，虽然叫方法区，但是里面放的是final数据，而不是叫常量区。
+
+4.还有最后一种字面量    
+堆-方法区-常量池区。//注意：不要被区的名字误导了，虽然叫常量池区，但是里面放的是字面量对象，而不是final数据。
+
+这些名字很容易搞混，也记不住。最重要的是，要结合实际的例子和代码和应用，去理解这些概念，不然就真的永远只是在那里背一些概念，似是而非，自己都不理解，就面试的时候能忽悠一下。
+
+因为，从大类上来说，内存只分2块，  
+1.所有线程共享  //堆  
+即所有线程都可以访问该内存的数据。
+
+2.线程独有   //栈  
+方法里的数据，即局部变量。  
+
+我们最关注的问题是线程安全的问题，所以一般把握这一点，知道内存大的划分就这么2块就可以了。
+
+至于其他的，比如堆的细分区域，知道怎么划分也没什么卵用。实际工作应用场景，很少去关注的这么细。
+
+
+
+---
+参考  
+堆区: 
+1.存储的全部是对象，每个对象都包含一个与之对应的class的信息。(class的目的是得到操作指令)   
+2.jvm只有一个堆区(heap)被所有线程共享，堆中不存放基本类型和对象引用，只存放对象本身 
+
+
+栈区:   
+1.每个线程包含一个栈区，栈中只保存基础数据类型的对象和自定义对象的引用(不是对象)，对象都存放在堆区中。  
+2.每个栈中的数据(原始类型和对象引用)都是私有的，其他栈不能访问。   
+3.栈分为3个部分：基本类型变量区、执行环境上下文、操作指令区(存放操作指令)。 
+
+
+方法区:   
+1.又叫静态区，跟堆一样，被所有的线程共享。方法区包含所有的static变量、final数据。 
+2.方法区中包含的都是在整个程序中永远唯一的元素，如static变量、final数据——这些数据是属于类的，不是属于对象的，或者也可以说属于对象，但是所有对象的数据都是一模一样的。
+
+http://blog.51cto.com/poseidon2011/1861375
+
+# String StringBuilder StringBuffer
+#### String
+应用场景  
+少量的字符串拼接，因为String.concat()拼接方法和直接量拼接(即+拼接)一样，都会创建新的字符串对象。
+
+```
+//String
+/**
+     * Concatenates the specified string to the end of this string.
+     * <p>
+     * If the length of the argument string is <code>0</code>, then this
+     * <code>String</code> object is returned. Otherwise, a new
+     * <code>String</code> object is created, representing a character
+     * sequence that is the concatenation of the character sequence
+     * represented by this <code>String</code> object and the character
+     * sequence represented by the argument string.<p>
+     * Examples:
+     * <blockquote><pre>
+     * "cares".concat("s") returns "caress"
+     * "to".concat("get").concat("her") returns "together"
+     * </pre></blockquote>
+     *
+     * @param   str   the <code>String</code> that is concatenated to the end
+     *                of this <code>String</code>.
+     * @return  a string that represents the concatenation of this object's
+     *          characters followed by the string argument's characters.
+     */
+    public String concat(String str //新的字符串) {
+        int otherLen = str.length();
+        if (otherLen == 0) {
+            return this;
+        }
+        int len = value.length;
+        char buf[] = Arrays.copyOf(value//旧的字符串, len + otherLen); //最终的字符串长度
+        str.getChars(buf, len); //这一步和StringBuilder的方法是一样的(只是参数个数不一样）
+        return new String(buf, true); //现在最关键的一点来了，因为这一行代码的这个步骤决定了字符串是否创建对象：1.String类是一个对象类型的类，所以它的对象包含了2个部分，就是地址值(变量名字就是地址值)和对象本身的数据(字符串的值就是对象本身的数据，在这里的代码体现为char buf[]这个字符数组才是对象本身的数据) 2.现在有了对象本身的数据char buf[]，但是如果想创建String对象的话，需要把这个字符数组作为构造方法的参数传进去，new一个String对象出来，因为String对象的值就是字符数组类型。
+        
+        //这里有一个问题：为什么不和StringBuilder一样，直接把要拼接的值复制到屁股后面去呢？
+        因为String的数据是字符数组，数组长度创建的时候大小就已经确定下来了，不能改变。而StringBuilder可以，数组大小可以扩容。
+        
+        //具体是怎么扩容的呢？见下文。
+    }
+    
+    /**
+     * Copy characters from this string into dst starting at dstBegin.
+     * This method doesn't perform any range checking.
+     */
+    void getChars(char dst[], int dstBegin) {
+        System.arraycopy(value //新的字符串的值(或者叫源字符串), 0, dst //旧的字符串(或者叫目标字符串), dstBegin, value.length); //把value复制到dst，得到最终的字符串，最终的字符串就是dst——因为已经把value复制过来了，所以dst现在包含了2个字符串的拼接
+    }
+```
+
+//AbstractStringBuilder如何扩容字符数组？
+```
+/**
+     * This implements the expansion semantics of ensureCapacity with no
+     * size check or synchronization.
+     */
+    void expandCapacity(int minimumCapacity) {
+        int newCapacity = value.length * 2 + 2; //默认是扩容2倍
+        if (newCapacity - minimumCapacity < 0)
+            newCapacity = minimumCapacity; //扩容2倍不够的话，就使用2个字符串加起来的实际长度
+        if (newCapacity < 0) {
+            if (minimumCapacity < 0) // overflow
+                throw new OutOfMemoryError();
+            newCapacity = Integer.MAX_VALUE;
+        }
+        value = Arrays.copyOf(value, newCapacity); //jvm底层实现：扩容字符数组
+    }
+```
+
+#### StringBuilder
+应用场景  
+大量的字符串拼接，因为不会创建新的对象。
+
+```
+//AbstractStringBuilder
+/**
+     * Appends the specified string to this character sequence.
+     * <p>
+     * The characters of the {@code String} argument are appended, in
+     * order, increasing the length of this sequence by the length of the
+     * argument. If {@code str} is {@code null}, then the four
+     * characters {@code "null"} are appended.
+     * <p>
+     * Let <i>n</i> be the length of this character sequence just prior to
+     * execution of the {@code append} method. Then the character at
+     * index <i>k</i> in the new character sequence is equal to the character
+     * at index <i>k</i> in the old character sequence, if <i>k</i> is less
+     * than <i>n</i>; otherwise, it is equal to the character at index
+     * <i>k-n</i> in the argument {@code str}.
+     *
+     * @param   str   a string.
+     * @return  a reference to this object.
+     */
+    public AbstractStringBuilder append(String str) {
+        if (str == null) str = "null";
+        int len = str.length();
+        ensureCapacityInternal(count + len);
+        str.getChars(0, len, value, count);
+        count += len;
+        return this;
+    }
+```
+
+```
+//String
+/**
+     * Copies characters from this string into the destination character
+     * array.
+     * <p>
+     * The first character to be copied is at index <code>srcBegin</code>;
+     * the last character to be copied is at index <code>srcEnd-1</code>
+     * (thus the total number of characters to be copied is
+     * <code>srcEnd-srcBegin</code>). The characters are copied into the
+     * subarray of <code>dst</code> starting at index <code>dstBegin</code>
+     * and ending at index:
+     * <p><blockquote><pre>
+     *     dstbegin + (srcEnd-srcBegin) - 1
+     * </pre></blockquote>
+     *
+     * @param      srcBegin   index of the first character in the string
+     *                        to copy.
+     * @param      srcEnd     index after the last character in the string
+     *                        to copy.
+     * @param      dst        the destination array.
+     * @param      dstBegin   the start offset in the destination array.
+     * @exception IndexOutOfBoundsException If any of the following
+     *            is true:
+     *            <ul><li><code>srcBegin</code> is negative.
+     *            <li><code>srcBegin</code> is greater than <code>srcEnd</code>
+     *            <li><code>srcEnd</code> is greater than the length of this
+     *                string
+     *            <li><code>dstBegin</code> is negative
+     *            <li><code>dstBegin+(srcEnd-srcBegin)</code> is larger than
+     *                <code>dst.length</code></ul>
+     */
+    public void getChars(int srcBegin, int srcEnd, char dst[], int dstBegin) {
+        if (srcBegin < 0) {
+            throw new StringIndexOutOfBoundsException(srcBegin);
+        }
+        if (srcEnd > value.length) {
+            throw new StringIndexOutOfBoundsException(srcEnd);
+        }
+        if (srcBegin > srcEnd) {
+            throw new StringIndexOutOfBoundsException(srcEnd - srcBegin);
+        }
+        System.arraycopy(value//新的字符串, srcBegin, dst//旧的字符串, dstBegin, srcEnd - srcBegin); //jvm底层实现：复制新的字符串到旧的字符串屁股后面去
+    }
+```
+
+#### StringBuffer
+和StringBuilder一模一样，继承了同一个类AbstractStringBuilder，唯一的不同是，StringBuffer方法同步。
+
+
+# new String()得到的对象，为什么是不可变对象
+什么是不可变对象？  
+众所周知， 在Java中， String类是不可变的。那么到底什么是不可变的对象呢？ 可以这样认为：如果一个对象，在它创建完成之后，不能再改变它的状态，那么这个对象就是不可变的。不能改变状态的意思是，不能改变对象内的成员变量，包括**基本数据类型的值**不能改变，**引用类型的变量**不能指向其他的对象(即地址值不能改变)，引用类型指向的对象的状态也不能改变。
+
+---
+String为什么是不可变对象？  
+1.String类没有提供方法可以写字符数组char[] value  
+所以从外部是不能改变String的值的。  
+2.数据是final的  
+数据是final的，所以在String内部，也是不能改变数据的。
+
+```
+public final class String
+    implements java.io.Serializable, Comparable<String>, CharSequence {
+    /** The value is used for character storage. */
+    private final char value[]; //数据是final，值不能改变
+```
+
+---
+但是，String s变量命名可以被再次赋值，为什么说是不可变对象呢？  
+代码
+```
+String s = "abc";
+s = "123"; //出现赋值，变量s的值已经被改变
+```
+
+上面的代码，明明可以改变变量的值。确实是这样，改变了对象的值。但是，我们说String对象是不可变对象，指的是“abc”字面量对象是不可变的，它第一次创建的时候，被放到堆区-方法区-常量池区(即字面量区)。当s被重新赋值的时候，又创建了一个新的字面量对象"123"，这个新的字面量对象也被放到堆区-方法区-常量池区(即字面量区)，这个时候，s重新指向了新的字面量对象"123"，也就是说，s变量的值(即地址值)已经被改变。
+
+
+
+
+https://blog.csdn.net/zhangjg_blog/article/details/18319521
+
+
+# 如何获取对象的内存地址？
+只能通过Unsafe类，没有其他方法。  
+http://bijian1013.iteye.com/blog/2300961
+
+注：Object.hashCode()，获取的只是对象的唯一标识符，而不是内存地址，因为java API文档只是说是对象的唯一标识符，根本没有提到内存地址。
+https://www.jianshu.com/p/be943b4958f4
+
+
+
+# 对象的唯一标识符？
+什么是对象的唯一标识符？  
+顾名思义，就是对象的唯一标识符。
+
+---
+与对象的内存地址有什么区别？  
+变量s占用的内存，存放的内容就是对象的内存地址。对象的内存地址值是惟一的，也就是说，对象的内存地址也可以唯一标识一个对象，但是你一般获取不到对象的内存地址值——除非使用Unsafe类。
+
+对象的唯一标识符，是唯一标识对象的另外一种方式。
+
+---
+作用?  
+因为可以唯一标识一个对象，对象的内存地址也可以唯一标识一个对象，所以可以间接的使用唯一标识符来替代对象的内存地址来唯一的标识一个对象。
+
+---
+如何获取对象的唯一标识符？  
+通过Object.hashCode()获取。
+
+如果子类重写了hashCode()方法，这个时候就不能唯一标识一个对象了，比如String.hashCode()。
+
+---
+比较操作符==  
+有2种情况：
+1.字面量
+字面量对象 == 字面量对象 //比较字面量对象的内存地址
+"abc" == "abc"; //true，因为是同一个字面量对象的内存地址
+
+字面量对象-变量1 = 字面量对象-变量2 //同上，变量占用的内存里存放的就是字面量对象的内存地址
+String s1 = "abc";
+String s2 = "abc";
+s1 == s2 //true。原因同上。
+
+2.对象
+对象1 = 对象2 //比较对象的内存地址
+
+String s1 = new String("abc");
+String s2 = new String("abc");
+s1 == s2 //false。2个变量的地址值指向的是2个不同的对象。
+
+# 如何比较对象是否相等？
+有2种方法：  
+1.比较操作符==  
+比较2个对象的内存值。
+
+2.System.identityHashCode(对象)  
+比较2个对象的唯一标识符。  
+和Object.hashCode()的作用以及获取的值是一样的，都是对象的唯一标识符，之所以有了Object.hashCode()，还要弄一个System.identityHashCode(对象)出来，是因为Object.hashCode()方法可能被子类重写。例如，String重写了hashCode()方法之后，计算得到的值就不是对象的唯一标识符。
+
+
+参考  
+here are two ways of getting information about a string memory location.   
+(1) == comparison of two String references is true if they are both null or both refer to the same String object.   
+(2) System.identityHashCode, as far as possible, returns a different value for each distinct object. 
+https://stackoverflow.com/questions/15596694/memory-allocation-for-local-string-literals
+
+
+---
+比较对象是否相等和比较对象的数据是否相等，有什么区别？  
+1.比较对象是否相等  //使用比较操作符==  
+比较的是对象的内存地址是否相等。  
+1）内存地址相等  
+对象的数据一定相等。  
+2）内存地址不等  
+对象的数据可能不相等，也可能相等。  
+
+2.比较对象的数据是否相等  //使用String.equals("abc")  
+比较的是对象的数据。   
+1）对象的数据相等  
+对象的内存地址不一定相等。  
+2）对象的数据不等  
+对象的内存地址一定不相等。  
+
+
+
+# 到底什么是字面量对象？
+#### 字符串类型的字面量对象
+字符串类型的字面量对象是什么？  
+字符串类型的字面量对象，首先是一个对象，是什么的对象呢？是String的一个对象/实例。
+
+请看java API文档。  
+The String class represents character strings. **All string literals in Java programs, such as "abc", are implemented as instances of this class**.
+https://docs.oracle.com/javase/7/docs/api/java/lang/String.html#String(java.lang.String)
+
+既然字面量对象也是String的一个对象/实例，所以字面量对象可以访问String类的方法。比如，"abc".length()。
+
+---
+字符串类型的字面量对象和new String()，到底有什么不同？  
+见下文的图。
+
+1.字面量对象  
+内存位置  
+堆-方法区-常量池区。
+
+内存内容  
+"abc" //就是数据本身。  
+
+2.new String() 对象  
+内存位置  
+堆。
+
+内存内容  
+char[] value; //字符数组变量(地址值)，它指向常量池里的字面量对象(数据本身)。
+
+
+
+
+#### 其他类型(数字、字符、布尔)的字面量对象  
+https://en.wikibooks.org/wiki/Java_Programming/Literals
+
+
+
+
+
+
+
+# 字面量池里已经有字面量，s(地址值)、new String的对象(新建的对象，在堆里)、字面量——这三者之间的关系，以及在内存中是如何分布的？
+
+![](https://user-gold-cdn.xitu.io/2018/11/24/16743d7f3ff80185?w=2222&h=1177&f=png&s=206902)
+---
+2个不同方法里的局部变量，地址值是否相同？
+相同。这也更好验证了所有的变量指向的都是字面量池里的同一个字面量对象。
+https://stackoverflow.com/questions/15596694/memory-allocation-for-local-string-literals
+
+---
++操作符  
+2个作用  
+1.一元操作符-算数运算符-加法运算符  
+加法运算操作符  
+
+2.拼接字符串操作符  
+1）字符串 + 字符串  
+2）字符串 + 数字  //字符串拼接操作，其他不是字符串的基本数据类型都会转换为字符串，具体步骤是：1.封箱转换，即int——》Integer，具体是通过调用基本数据类型封装类的构造方法进行封装转换(打断点可以发现会进入到构造方法里) 2.封装类.toString，得到字符串 3.最后，拼接字符串。
+
+---
+自动装箱和自动拆箱？
+1.自动装箱
+基本数据类型——》对应的包装类
+2.自动封装
+反过来。
+
+作用
+方便程序员代码的书写，不需要转来转去的。
+
+什么时候自动装箱和自动拆箱？
+官方文档说，二者都是在以下2种情况下，才会自动装箱和自动拆箱。  
+Converting a primitive value (an int, for example) into an object of the corresponding wrapper class (Integer) is called autoboxing. The Java compiler applies autoboxing when a primitive value is:
+
+Passed as a parameter to a method that expects an object of the corresponding wrapper class.//方法调用时，传值  
+Assigned to a variable of the corresponding wrapper class.//赋值
+https://docs.oracle.com/javase/tutorial/java/data/autoboxing.html
+
+除了这2种情况，还有字符串使用+进行拼接的时候，如果有非字符串类型数据，也会自动封装操作。
+
+
+
+---
+编译期间和运行期间？  
+1.编译期间  
+编译器把.java源码文件转换为.class字节码文件。  
+2.运行期间   
+jvm加载.class字节码文件到内存运行。  
+
+
+---
+错误示例  
+https://study.com/academy/lesson/java-string-constant-pool-concept-mechanism.html 
+
+这个老外写的，是错的！因为里面说，new String()没有重复使用字面量池里的字面量对象。实际上，new String()也是和变量s(String s = "abc";)一样，重复使用字面量池里的字面量对象。更准确的说，是new String()对象里的char[] value和变量s指向的字面量对象一样，因为二者占的内存存放的内容都是字面量对象的内存地址。
+
+我们看jdk源码。
+```
+//String
+/**
+     * Initializes a newly created {@code String} object so that it represents
+     * the same sequence of characters as the argument; in other words, the
+     * newly created string is a copy of the argument string. Unless an
+     * explicit copy of {@code original} is needed, use of this constructor is
+     * unnecessary since Strings are immutable.
+     *
+     * @param  original
+     *         A {@code String}
+     */
+    public String(String original) { //original是字面量对象，在new String(字面量对象)的时候，就是使用构造器构造一个新的对象，但是构造器方法的参数是字面量对象，这个字面量对象会重复使用字面量池里的字面量对象。
+        this.value = original.value; //字面量池里的字面量对象-地址值赋值给new String对象的数据value(即char[] value)。
+        this.hash = original.hash;
+    }
+```
+
+如果是字符数组，情况又是什么样子的呢？
+```
+/**
+     * Allocates a new {@code String} so that it represents the sequence of
+     * characters currently contained in the character array argument. The
+     * contents of the character array are copied; subsequent modification of
+     * the character array does not affect the newly created string.
+     *
+     * @param  value
+     *         The initial value of the string
+     */
+    public String(char value[]) { //与上面不同的是，这里的构造器参数是一个数组变量(地址值)，而不是字面量对象，所以变量c（假设定义了char[] c = {'a','b','c'}）是一个字符数组，c指向的是哪里内存的什么对象？因为数组也是对象，所以是堆里的内存。具体是堆里的哪里的内存呢？因为字符数组的数据类型是char，而基本数据类型的值不共享(https://docs.oracle.com/javase/tutorial/java/nutsandbolts/datatypes.html)，从而得知{'a','b','c'}不在字符串-字面量对象池里，事实上打印的地址值二者也是不一样的，所以刚好印证了基本数据类型的值不共享这一句话——最后总结一句话就是，{'a','b','c'}到底存在内存的哪里？堆，不是堆-方法区-常量池。
+        this.value = Arrays.copyOf(value, value.length);
+    }
+```
+
+
+# 各种数据类型的数据，在内存中的分布？
+1.堆  
+1）堆  
+new 对象，注意一定是new 关键字创建的对象。例如，new String()。  例如，数组对象。  
+2）堆-方法区    
+属于类的数据(static 数据)或者数据不变的数据(final 数据)，不属于对象的数据。  
+3）堆-方法区-常量池区    
+字符串字面量对象。注意，这个也是对象，但是不是new   创建的对象，所以它不在一般的堆里，而是在堆-方法区-常量池区。
+
+2.栈    
+局部变量。  
+1）对象类型  
+存放的是地址值，指向真正的对象(堆里)。  
+2）数据数据类型  
+存放的是局部变量和值。
+
+注意：共享数据是否共享？
+只有字符串字面量对象可以共享，其他数据都不共享。基本数据类型不共享，例如，字符数组{'a','b','c'}和字符串"abc"不共享，所以，基本数据类型都是单独开辟一段内存空间，数组对象也是单独开辟一段内存空间，无论值是否相同。
+
+官方文档原文
+Primitive values do not share state with other primitive values. https://docs.oracle.com/javase/tutorial/java/nutsandbolts/datatypes.html
+
+测试的时候，也可以验证，字符数组{'a','b','c'}和字符串"abc"的对象唯一标识符不同，不仅仅如此，而且不同的字符数组，哪怕值一样，对象唯一标识符也不同。
+
+---
+代码和内存图
+
+![](https://user-gold-cdn.xitu.io/2018/11/26/1674fdfd23bcdc47?w=3331&h=1713&f=png&s=457567)
+
+
+# 参考
+https://blog.csdn.net/zhangjg_blog/article/details/18319521
+
+https://blog.csdn.net/lubiaopan/article/details/4776000
+
+http://blog.51cto.com/poseidon2011/1861375
+
+https://docs.oracle.com/cd/E13150_01/jrockit_jvm/jrockit/geninfo/diagnos/garbage_collect.html
+
+https://www.cnblogs.com/xiaoxi/p/6036701.html

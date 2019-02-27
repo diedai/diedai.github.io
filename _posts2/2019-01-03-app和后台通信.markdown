@@ -1,0 +1,224 @@
+---
+layout:     post
+title:      "app和后台通信"
+subtitle:   " \" 不同进程通信\""
+date:       2019-01-03 06:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - 架构
+---
+
+
+# 协议
+#### 文本协议http
+json格式的字符串/xml格式的字符串  
+1）组装  
+2）解析
+
+客户端和后台 分别都要组装数据和解析数据。
+
+---
+优点  
+使用简单
+
+缺点  
+任何协议都有自己的协议规则 比如各种头之类的。     这些规则/头信息也要占一定的数据量。如果数据量/请求量很大 那么组装数据和解析数据速度很慢。
+
+#### 二进制协议google-protocol buffer
+优点  
+1.比文本协议节省规则/头信息。
+但是既然它也是协议 虽然是二进制 肯定也有规则/头信息。具体是怎么节约数据量的？
+
+2.速度快是因为读写字节更快吗？
+
+缺点
+
+---
+rpc框架
+grpc
+
+
+# 工作使用
+1.twe研发管理平台  
+soap协议 路径 xml格式
+
+2.zf钱包app/其他app  
+https //不管是android还是ios 都一样 公司所有的移动端项目都是https协议
+
+---
+1）web项目  
+web项目——》控制器层项目(struts2 请求路径基于配置文件)——》service项目——》dao层项目
+
+2）移动客户端  
+移动客户端——》控制层项目(1.也是web项目 但是没有前端jsp页面 就是专门给移动客户端提供controller的 2.springMVC 请求路径基于注解)——》service项目(和web项目共用同一个service项目)——》dao项目(共用)
+
+3.ll  
+1）ice
+
+2）grpc
+http2协议
+protocol buffer
+
+# 安全
+只能官方客户端发出的请求才能访问后台。如何实现？基于加密和签名。
+具体细节是验证签名是否一致，一致就是对方请求可信任。和支付接口一样。
+
+# 网上资料
+web站点，前端是html + css +JavaScript，后端有用Java、php等等各种语言的，你说它能提供服务么？
+
+关于服务器的架构，目前无论是web应用还是ios应用，都是基于http协议的。后台的架构：
+1.你可以选择类似于新浪微博的形式，就是直接把后端封装成webservice，然后通过api的调用与后端通信。对于webservice的实现，目前比较流行的就是基于soap协议或者基于RESTful风格，前者数据交换使用xml格式，后者则是用json格式；
+
+2.基于http请求响应模式的开发，就是类似于web应用。通过url基于http协议请求，服务器处理响应。
+
+3.当然你还可以自己封装socket，来用于应用和后端交互。在socket的通信中，可以使用tcp长连接，tcp短连接，udp通信，数据一般都组json或者xml，或者自己定义格式。
+
+
+作者：Alan Yang
+链接：https://www.zhihu.com/question/21973102/answer/19908148
+来源：知乎
+著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
+
+---
+1. 首先选择一个后台开发技术。 Java, Python, PHP,Node等等，主要是自己熟悉，顺手就行。可以顺便选择一个框架什么的，加速开发进度～
+
+2. 然后构建后台RESTful API，了解Restful规范。写好API文档。交给前端攻城狮～～
+
+3. 前台调用 API，获取数据，构建页面。前台使用什么完全无关， Android，iOS, web都是分离的～
+
+4. 就是这么简单～
+
+
+作者：Max Xu
+链接：https://www.zhihu.com/question/21973102/answer/36807592
+来源：知乎
+著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
+
+
+---
+总结  
+1.http请求  
+和BS架构一样  
+一般app和后台都是基于http协议 //json
+
+2.web service  
+1）xml //soap  
+twe-研发管理平台：基于soap wsdl xml
+
+2）json //restful api  
+restful api其实就是上面的http协议 和http协议一样 只不过遵循一套比较规范的api规则而已 仅此而已 本质还是基于http协议/json格式的字符串  
+所以  和上面的http请一模一样的 请求也是http请求 协议也是http协议 没有任何不同。
+
+# 总结
+1.文本协议http  
+目前 app和后台 一般都是http。
+
+2.二进制协议  
+二进制协议是属于应用层协议吗？传输层用的是TCP还是？见下文-4个要素。
+
+---
+对于App和后台接入层的数据交互，不管是长链接还是短链接，其数据协议都可以存在文本协议和二进制协议两种类型。文本协议直观、描述性强，容易理解、便与调试，并且协议修改方便，但是数据冗余较多，安全性稍差；二进制协议格式精简、冗余数据少，窃听成本更高，但是数据不直观、调试略微复杂，使用、升级维护都需要约定好规则，各有优劣，因此可以根据不同的使用场景确定不同的方案。
+
+
+
+https://cloud.tencent.com/developer/article/1070247
+
+
+
+
+
+# 长连接还是短链接？
+
+1.短连接
+
+请求/响应
+
+
+
+2.长连接
+
+即时通讯
+
+
+
+# 四个要素
+
+分布式调用技术的主要关注点有四个，前面两点比较常见，最后两点是我新加的：
+
+
+
+1. 采用什么传输协议，TCP, HTTP，还是其他
+
+
+
+2. 采用什么序列化协议(也叫CodeC,编解码，Marshalling)，比如基于文本的XML（自定义XML，或者SOAP），基于二进制流（Java序列化，或者自定义序列化协议，比如Thrift, Protobuf, JBoss Marshalling）
+
+
+
+3. 采用什么IO形式，阻塞IO，非阻塞同步IO(select / poll / epoll)，非阻塞异步IO
+
+
+
+4. 采用什么方式运行，运行在HTTP服务器上，还是以单独进程运行
+
+--------------------- 
+
+作者：iter_zc 
+
+来源：CSDN 
+
+原文：https://blog.csdn.net/iter_zc/article/details/39341983 
+
+版权声明：本文为博主原创文章，转载请附上博文链接！
+
+
+
+# 总结
+
+#### 通信协议？
+
+1.tcp
+
+2.http协议 //大部分时候 大部分情况 都是http
+基于tcp的自定义协议 //也是类似http应用协议 当http协议不满足要求的时候
+
+#### 数据格式？
+1.文本
+xml //soap
+json //http、 restful API：已经替代soap/xml架构
+
+2.二进制
+protocol //1.当http协议不满足要求的时候 对性能要求极高的时候 2.rpc框架-grpc
+
+#### 长连接还是短链接？
+1.基于请求/响应架构 //单向请求
+
+2.即时通讯架构 //双工/向通信
+
+3.服务器推技术 //app厂商推送消息、极光推送
+
+#### 安全
+保证是官方客户端发送的请求 只有官方客户端发送的请求才接受否则拦截 所以要判断检验 基于加密 + 签名。
+
+#### 阻塞和非阻塞
+
+# 参考
+https://blog.csdn.net/iter_zc/article/details/39341983  
+http://rdc.hundsun.com/portal/article/738.html
+
+---
+
+https://blog.csdn.net/iter_zc/article/details/39341983
+
+https://www.zhihu.com/question/21973102
+
+https://cloud.tencent.com/developer/article/1070247
+
+https://segmentfault.com/q/1010000002742070
+
+
+
+
+

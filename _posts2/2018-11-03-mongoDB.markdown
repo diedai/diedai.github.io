@@ -1,0 +1,138 @@
+---
+layout:     post
+title:      "mongoDB"
+subtitle:   " \"磁盘数据库\""
+date:       2018-11-03 06:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - mongoDB
+    - cache
+    - 缓存
+---
+
+# 是什么？
+磁盘数据库。
+
+# 为什么要使用？
+为什么不使用关系数据库mysql/oracle？关系数据库太重了，建立和释放连接太耗时。
+
+为什么不使用内存数据库memcache？不重要的大数据。
+
+
+# 工作使用
+#### 各种操作日志
+
+---
+代码
+
+```
+/**
+ * @author 
+ */
+@SuppressWarnings("serial")
+public class BaseAction extends ActionSupport {
+	private static Log log = LogFactory.getLog(BaseAction.class);
+	
+	protected static NosqlDao nosqlDao = new MongoDao();
+
+	protected void addMerchantLog(String content, String moduleName) {
+		try {
+			MerchantLog merchantLog = new MerchantLog();
+			merchantLog.setIp(getIpAddr());
+			merchantLog.setLogDate(new Date());
+			merchantLog.setModuleName(moduleName);
+			merchantLog.setUri(getHttpRequest().getRequestURI());
+			MerchantUser merchantUser = (MerchantUser) this.getSessionAttribute("merchantUser");
+			if(null!=merchantUser) {
+				merchantLog.setMerchantId(merchantUser.getMerchantId());
+				merchantLog.setUserId(merchantUser.getId());
+				merchantLog.setUserName(merchantUser.getName());
+			}
+			merchantLog.setContent(content);
+			nosqlDao.add(merchantLog); //写数据
+		} catch (Exception e) {
+			log.error(e);
+		}
+	}
+```
+
+#### 非重要用户信息
+在线用户数量等 //总后天监控数据
+
+---
+代码
+
+```
+package com.gzh.dpp.ms.comm;
+
+import java.util.Date;
+import java.util.List;
+
+import javax.servlet.http.HttpSessionBindingEvent;
+import javax.servlet.http.HttpSessionBindingListener;
+
+import com.gzh.dpp.commons.nosql.mongodb.MongoDao;
+import com.gzh.dpp.domain.system.admin.SysUserStatus;
+
+public class OnlineUserStatusListener implements HttpSessionBindingListener {
+	private static MongoDao mongo = new MongoDao();
+	
+	private SysUserStatus sysUserStatus;
+	public OnlineUserStatusListener(SysUserStatus sysUserStatus){
+		this.sysUserStatus = sysUserStatus;
+	}
+
+	//登录次数，时间，IP，是否在线，是否异常登录
+	public void valueBound(HttpSessionBindingEvent event) {
+		try {
+			List<SysUserStatus> list = mongo.query(SysUserStatus.class, "user_id", //读数据 sysUserStatus.getUser_id());
+			if(list!=null&&list.size()>0){
+				SysUserStatus user = list.get(0);
+				sysUserStatus.setLogin_count(user.getLogin_count()+1);
+				sysUserStatus.setIs_online(1);
+				sysUserStatus.setLogin_time(new Date());
+				sysUserStatus.setLogin_exception(0);
+				mongo.update("user_id", sysUserStatus.getUser_id(), sysUserStatus); //更新数据
+			}else{
+				sysUserStatus.setLogin_count(1);
+				sysUserStatus.setIs_online(1);
+				sysUserStatus.setLogin_time(new Date());
+				sysUserStatus.setLogin_exception(0);
+				mongo.add(sysUserStatus); //写数据
+			}
+		} catch (Exception e) {
+			System.out.println("mongodb error...");
+		}
+	}
+
+	public void valueUnbound(HttpSessionBindingEvent event) {
+		try {
+			List<SysUserStatus> list = mongo.query(SysUserStatus.class, "user_id", sysUserStatus.getUser_id());
+			if(list!=null&&list.size()>0){
+				SysUserStatus user = list.get(0);
+				sysUserStatus.setIs_online(0);
+				sysUserStatus.setLogin_time(new Date());
+				sysUserStatus.setLogin_exception(0);
+				mongo.update("user_id", sysUserStatus.getUser_id(), sysUserStatus);
+			}
+		} catch (Exception e) {
+			System.out.println("mongodb error...");
+		}
+	}
+}
+
+```
+
+# 应用场景
+1.大数据 //因为磁盘数据库，磁盘容量大
+2.非重要数据/非实时数据 //因为磁盘数据库比内存数据库慢，所以实时性要求不高
+
+# 如何使用
+#### 写数据
+add(对象); //插入一条数据/记录
+
+#### 读数据
+get(XXX.class,字段,字段的值) //读一条数据
+

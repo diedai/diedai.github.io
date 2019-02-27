@@ -1,0 +1,325 @@
+---
+layout:     post
+title:      "web服务器"
+subtitle:   " \"tomcat、jetty\""
+date:       2018-11-01 06:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - web
+---
+
+# 前言
+1.web服务器的各个主要模块和主要类的一一对应关系。
+
+2.服务器和知识点串起来。
+
+
+# 服务器的运行流程
+1.启动类Catalina    
+启动应用程序。
+
+2.连接器Connector  
+接受请求，每个请求来了之后，新建一个独立的线程。
+
+3.处理器Processor    
+1）解析客户端套接字请求，得到请求(输入流)和响应(输出流)；  
+2）根据输入流里的请求路径，得到servlet类，创建servlet，调用servlet类的.doGet/doPost/service方法。//传递的参数就是请求和响应的门面类，因为门面类实现了HttpServletRequest/Response。
+
+4.业务类HttpServlet  
+处理业务功能；
+输出数据到客户端。
+
+
+具体代码可以参考《tomcat一书》，源码可以参考tomcat的源码。
+
+
+---
+容器  
+就是上面流程的3步骤。即就是处理器的功能。
+
+说具体点，容器就是servlet容器，专门用于创建servlet对象和调用servlet的业务方法。容器就是干这个的。
+
+---
+那引擎、主机、上下文，在哪里处理？  
+首先，它们是包含关系，一层一层的包含关系，一对多的关系，父子关系。看源码也是如此。
+
+具体的源码的执行流程，分别是在哪一个步骤？
+
+# 4个核心类
+servlet配置  
+servlet上下文  
+
+请求  
+响应
+
+
+
+
+
+# 服务器与客户端的通信
+与上面的概念一一对应关系？
+
+
+# servlet接受请求和MVC的控制器接受请求
+
+---
+Servlet 的确已经能够帮我们完成所有的工作了，但是现在的 web 应用很少有直接将交互全部页面都用 servlet 来实现，而是采用更加高效的 MVC 框架来实现。这些 MVC 框架基本的原理都是将所有的请求都映射到一个 Servlet，然后去实现 service 方法，这个方法也就是 MVC 框架的入口。
+
+---
+Connector 组件
+Connector 组件是 Tomcat 中两个核心组件之一，它的主要任务是负责接收浏览器的发过来的 tcp 连接请求，创建一个 Request 和 Response 对象分别用于和请求端交换数据，然后会产生一个线程来处理这个请求并把产生的 Request 和 Response 对象传给处理这个请求的线程，处理这个请求的线程就是 Container 组件要做的事了。
+
+# 会话跟踪技术
+什么是会话跟踪技术？  
+就是服务器和客户端可以识别一个用户的技术。
+
+---
+为什么会诞生会话跟踪技术？
+因为http协议是无状态协议，每次请求连接不保存数据。  
+那怎么识别同一个用户的多个请求？会话跟踪技术。
+
+---
+怎么实现？  
+1.服务器  
+2.客户端  
+双方都维持着一个会话id，这样服务器接受客户端请求的时候，如果是同一个用户发出的多个请求，服务器就知道是同一个用户。  
+知道同一个用户的好处是，服务器端可以识别同一个用户的多个请求，这样就可以保存为每个用户保存单独的数据，方便每次请求时的读写。
+如果没有会话跟踪技术，服务器端没办法知道同一个用户的不同请求，不同请求之间就没有办法进行交流/通信/数据交换，举个例子：  
+用户购物车下订单，往往有多个页面，某个页面下单了，下个页面再次请求就不知道是这个用户的订单了。
+
+以上是理论解释。
+
+下面再看具体使用。
+1.服务器端
+客户端第一次请求，服务器生成一个会话id，响应的时候发回给客户端。具体是客户端哪里呢？客户端头参数Cookie:jsessionid=XXX。
+
+以后，每次请求的时候，都会发送会话id。
+
+服务器端处理Cookie技术主要是HttpSession类和Cookie类/request类结合使用。  
+服务器和客户端实现了Cookie功能，所有一旦客户端发出请求之后，服务器Cookie对象里默认就有会话id数据。后面的每次请求，服务器和客户端交换会话id的时候都是隐式的在处理，代码里根本不用管Cookie类和会话id(即jsessionid)。除非程序员自己需要往Cookie里写其他的数据，否则永远都不需要处理Cookie类。
+所以，服务器端的HttpSession和Cookie这2个类包含了会话id，程序员平时只需要访问会话对象里的数据就可以了，怎么读写会话数据？1.获取会话对象(HttpSession session = request.getSession()) 2.写和读数据(session.setAttribute()/getAttribute())。  
+再说一次，会话id已经由服务器和客户端默默地在背后处理，你读写会话对象里的数据的时候，就是当前会话id用户的会话对象。
+
+如何要自己添加其他的数据到Cookie，怎么添加？和会话数据一样，都是通过request读写数据。1.写数据：request.addCookie() 2.读数据：request.getCookie();
+
+
+```
+//测试禁用Cookie
+package test1;
+
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+public class SessionTest extends HttpServlet{
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -7086689145523237424L;
+	
+	/**
+	 * 测试客户端关闭Cookie是否对会话有影响
+	 */
+	public void doPost(HttpServletRequest req, HttpServletResponse resp) {
+		HttpSession session = req.getSession();
+		String v = (String) session.getAttribute("gzh");
+		if (v == null) { //第一次请求，或者不是第一次请求但是禁用了Cookie，会话数据都无法获取，即为null。为什么呢？因为客户端这个时候无法传递请求头Cookie里的会话id给服务器，所以服务器也没有办法识别是哪一个用户发的请求/是否是同一个用户发的请求。
+			session.setAttribute("gzh", "123");
+		} else { //非第一次请求，就有数据
+			System.out.println(v); 
+		}
+	}
+	
+	public void doGet(HttpServletRequest req, HttpServletResponse resp) {
+		doPost(req, resp);
+	}
+
+}
+
+```
+
+
+
+2.客户端
+第一次请求之后，请求头有Cookie 会话id参数。
+
+如果客户端浏览器设置关闭禁用Cookie技术，请求头就不会有Cookie。例如，如果浏览器禁用Cookie技术，淘宝、京东、孔夫子，所有的网站，都无法登陆，因为登陆之后，跳转到首页，发现没有会话id，又重定向到登录页面。或者，已经登录之后，然后禁用Cookie，再次点击请求，这时会发现退出到登录页面。工作当中，也是和其他网站一样的处理方法。
+
+也就是说，浏览器必须开启Cookie功能，否则不能正常使用网站。基本上每个网站都是这么处理的。
+
+虽然，servlet api specification里提供了好几种方式，比如url rewriting和重定向，但是真实网站没人这么处理。
+
+重定向，一般只是用于：1.没有登陆，跳转到登录页面 2.错误页面。
+```
+//过滤器
+//作用：没登陆，跳转到登陆页面。
+public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse,
+			FilterChain filterChain) throws IOException, ServletException {
+		HttpServletRequest request = (HttpServletRequest) servletRequest;
+		HttpServletResponse response = (HttpServletResponse) servletResponse;
+		HttpSession session = request.getSession();
+		String uri = request.getRequestURI();
+		String contextPath = request.getContextPath();
+		
+		if (!isIgnoreURL(uri, contextPath + java.io.File.pathSeparator)) {		
+			if(session.getAttribute("user")==null || uri.indexOf(isLogin)==-1){   
+	        	response.sendRedirect(contextPath + loginURL);
+	        }
+		}
+		filterChain.doFilter(request, response);
+	}
+```
+
+```
+//控制器
+//作用：跳转到错误页面
+if(StringUtils.isBlank(exportExcelDate)){
+			log.error("。。。");
+			try {
+				response.sendRedirect(errorPath);
+				return;
+			} catch (IOException e1) {
+				return;
+			}
+		}
+```
+
+
+---
+url rewriting?  
+就是在url后面添加url;jsessionid=XXX。这种方法必须要服务器同时实现重定向方式的会话跟踪技术，否则肯定是没有办法进行会话跟踪的，因为服务器和客户端必须要维持一个类似会话id的东西。否则，服务器永远都没有办法知道多个请求是否来自同一个用户。
+
+
+
+
+
+---
+Cookie用的比较少，会话Session用的比较多？
+因为有关Cookie的一切，都由服务器和客户端在背后默默地处理掉了，不需要程序员来关心这个问题。
+
+#### Session
+如何使用？  
+1.获取会话对象  
+2.写数据到会话对象里  
+3.读会话对象里的数据
+
+
+为什么比较多使用？
+
+底层原理？  
+服务器和客户端通过会话id。
+
+优缺点？
+
+#### Cookie
+如何使用？
+服务器端的一个Cookie对象，就是客户端的一个Cookie数据。  
+
+为什么比较少使用？
+
+优缺点？
+
+---
+有了 Session ID 服务器端就可以创建 HttpSession 对象了，第一次触发是通过 request. getSession() 方法，如果当前的 Session ID 还没有对应的 HttpSession 对象那么就创建一个新的，并将这个对象加到 org.apache.catalina. Manager 的 sessions 容器中保存，Manager 类将管理所有 Session 的生命周期，Session 过期将被回收，服务器关闭，Session 将被序列化到磁盘等。只要这个 HttpSession 对象存在，用户就可以根据 Session ID 来获取到这个对象，也就达到了状态的保持。
+
+
+# 设计模式
+1.观察者设计模式
+事件监听  
+
+---
+观察者和事件监听的关系？
+
+#### 门面设计模式
+有哪些类使用了门面设计模式？  
+请求    
+响应  
+会话  
+上下文  
+以上4个对象，都有对应的门面类。
+
+---
+为什么要使用门面设计模式？作用和好处是？  
+1.方便  
+比喻  
+医院有多个科室，但是有一个前台接待员。病人只需要咨询前台接待员就OK，不需要与每一个科室打交道。  
+小区物业保安需要做很多杂事。业主只需要找物业保安，不需要自己亲自做每一件杂事。  
+
+代码
+一个子系统，有多个类，提供了多个功能。用户只需要与门面类(封装了子系统的所有类的常用功能)打交道，不需要与子系统的每个类分别单独打交道。
+
+
+2.安全
+代码
+一个类，包含了很多数据。用户只需要访问部分数据，其他数据为了安全性不向用户公开，这个时候这个类的门面类纯粹是出于安全的目的，才新建了一个门面类(封装了类的部分功能，向外界用户只提供部分数据)。
+
+开源项目
+web服务器的4个不同作用域的类都有门面类。
+
+
+
+
+3.包装器设计模式
+请求  
+响应
+
+处理器Handler
+
+4.责任链设计模式
+存在父子或包含或一层接一层的关系  
+1）类加载器  //父子  
+2）服务器Server：引擎Engine(可以更换引擎)——主机Host(例如localhost)————项目(即上下文Context，可以部署多个项目)——Servlet类 //包含   
+3）请求——监听器——过滤器——控制器类 //一层接一层   
+MVC框架的拦截器也是一层一层的
+
+# servlet
+#### url mapping rule
+必须以/开头。例如，/路径。
+
+/表示，当前项目根路径，即ip:端口/项目名字/XXX。
+
+具体见servlet api specification。
+
+```
+<servlet>
+  	<servlet-name>SessionTest</servlet-name>
+  	<servlet-class>test1.SessionTest</servlet-class>
+  </servlet>
+  <servlet-mapping>
+  	<servlet-name>SessionTest</servlet-name>
+  	<url-pattern>/SessionTest</url-pattern> //必须以/开头，否则报错-路径错误。
+  </servlet-mapping>
+```
+
+# 服务器的目标
+1.多  
+多线程。多用户。同时接受多个用户的请求。//吞吐量
+
+2.快  
+每个线程每个用户处理要快，响应要快。 //提高响应速度
+
+3.好  
+源码写的好懂好维护。//代码可维护
+
+4.省  
+节省各种硬件资源。
+
+# 参考
+1.有一本介绍tomcat怎么实现的好书。
+
+
+2.https://www.ibm.com/developerworks/cn/java/j-lo-jetty/  
+https://www.ibm.com/developerworks/cn/java/j-lo-servlet/  
+https://www.ibm.com/developerworks/cn/java/j-lo-tomcat1/index.html  
+
+3.官方文档  
+servlet api specication  
+http://download.oracle.com/otn-pub/jcp/servlet-3.0-fr-eval-oth-JSpec/servlet-3_0-final-spec.pdf?AuthParam=1540281754_1dc207c61d739c0cb9b3f451f150a3e4
+
+
+
+

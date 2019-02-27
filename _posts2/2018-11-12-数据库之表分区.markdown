@@ -1,0 +1,188 @@
+---
+layout:     post
+title:      "数据库之表分区"
+subtitle:   " \"数据库厂商自动根据字段的值找到对应的分区：1.查询单个分区 2.查询多个分区 \""
+date:       2018-11-11 07:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - database
+    - 数据库
+---
+
+
+
+# 应用场景
+#### 按id字段
+
+#### 按日期字段
+
+# 子分区
+```
+create table 表名字(
+    ....
+)
+
+partition by range(id) //分区
+subpartition by range(date) //子分区
+
+分区1 //分区
+(
+   子分区1 //每个分区下面又划分为子分区
+   子分区2
+   ...
+)
+
+分区2
+(
+   子分区1
+   子分区2
+   ...
+)
+
+...
+```
+
+# 组合使用range和list
+
+```
+Example 4-11 Creating a composite range-list partitioned table
+
+CREATE TABLE quarterly_regional_sales
+      (deptno number, item_no varchar2(20),
+       txn_date date, txn_amount number, state varchar2(2))
+  TABLESPACE ts4
+  PARTITION BY RANGE (txn_date) //分区
+    SUBPARTITION BY LIST (state) //子分区
+    
+      (PARTITION q1_1999 VALUES LESS THAN (TO_DATE('1-APR-1999','DD-MON-YYYY')) //子分区
+         (SUBPARTITION q1_1999_northwest VALUES ('OR', 'WA'), //子分区
+          SUBPARTITION q1_1999_southwest VALUES ('AZ', 'UT', 'NM'),
+          SUBPARTITION q1_1999_northeast VALUES ('NY', 'VM', 'NJ'),
+          SUBPARTITION q1_1999_southeast VALUES ('FL', 'GA'),
+          SUBPARTITION q1_1999_northcentral VALUES ('SD', 'WI'),
+          SUBPARTITION q1_1999_southcentral VALUES ('OK', 'TX')
+         ),
+       PARTITION q2_1999 VALUES LESS THAN ( TO_DATE('1-JUL-1999','DD-MON-YYYY'))
+         (SUBPARTITION q2_1999_northwest VALUES ('OR', 'WA'),
+          SUBPARTITION q2_1999_southwest VALUES ('AZ', 'UT', 'NM'),
+          SUBPARTITION q2_1999_northeast VALUES ('NY', 'VM', 'NJ'),
+          SUBPARTITION q2_1999_southeast VALUES ('FL', 'GA'),
+          SUBPARTITION q2_1999_northcentral VALUES ('SD', 'WI'),
+          SUBPARTITION q2_1999_southcentral VALUES ('OK', 'TX')
+         ),
+       PARTITION q3_1999 VALUES LESS THAN (TO_DATE('1-OCT-1999','DD-MON-YYYY'))
+         (SUBPARTITION q3_1999_northwest VALUES ('OR', 'WA'),
+          SUBPARTITION q3_1999_southwest VALUES ('AZ', 'UT', 'NM'),
+          SUBPARTITION q3_1999_northeast VALUES ('NY', 'VM', 'NJ'),
+          SUBPARTITION q3_1999_southeast VALUES ('FL', 'GA'),
+          SUBPARTITION q3_1999_northcentral VALUES ('SD', 'WI'),
+          SUBPARTITION q3_1999_southcentral VALUES ('OK', 'TX')
+         ),
+       PARTITION q4_1999 VALUES LESS THAN ( TO_DATE('1-JAN-2000','DD-MON-YYYY'))
+         (SUBPARTITION q4_1999_northwest VALUES ('OR', 'WA'),
+          SUBPARTITION q4_1999_southwest VALUES ('AZ', 'UT', 'NM'),
+          SUBPARTITION q4_1999_northeast VALUES ('NY', 'VM', 'NJ'),
+          SUBPARTITION q4_1999_southeast VALUES ('FL', 'GA'),
+          SUBPARTITION q4_1999_northcentral VALUES ('SD', 'WI'),
+          SUBPARTITION q4_1999_southcentral VALUES ('OK', 'TX')
+         )
+      );
+```
+
+# 可以多个字段吗？
+可以。
+
+---
+代码  
+
+```
+Example 4-21 Creating a multicolumn range-partitioned table
+
+CREATE TABLE sales_demo (
+   year          NUMBER, 
+   month         NUMBER,
+   day           NUMBER,
+   amount_sold   NUMBER) 
+PARTITION BY RANGE (year,month) //多个字段
+  (PARTITION before2001 VALUES LESS THAN (2001,1),
+   PARTITION q1_2001    VALUES LESS THAN (2001,4),
+   PARTITION q2_2001    VALUES LESS THAN (2001,7),
+   PARTITION q3_2001    VALUES LESS THAN (2001,10),
+   PARTITION q4_2001    VALUES LESS THAN (2002,1),
+   PARTITION future     VALUES LESS THAN (MAXVALUE,0));
+```
+
+---
+参考  
+
+https://docs.oracle.com/cd/E18283_01/server.112/e16541/part_admin001.htm
+
+# 工作使用
+#### range
+
+#### 字段
+date //几天就新建一个分区(将近百万数据)
+
+#### 索引
+id 
+
+# 如何使用
+#### 查询单个分区
+自动查询单个分区。
+
+#### 查询多个分区
+自动查询多个分区。
+
+---
+代码
+
+```
+where date between 2017 and 2018;
+```
+
+# 总结  
+1.一般情况下，都是数据库厂商实现了分区功能，1）创建：dba创建分区 2）使用：自动根据字段的值，自动会找到对应的分区，不需要手动在sql指定分区名字，无论是单个分区还是多个分区。
+
+2.数据库厂商也允许手动在sql里指定分区名字。
+```
+Example 4-21 Creating a multicolumn range-partitioned table
+
+CREATE TABLE sales_demo (
+   year          NUMBER, 
+   month         NUMBER,
+   day           NUMBER,
+   amount_sold   NUMBER) 
+PARTITION BY RANGE (year,month) 
+  (PARTITION before2001 VALUES LESS THAN (2001,1),
+   PARTITION q1_2001    VALUES LESS THAN (2001,4),
+   PARTITION q2_2001    VALUES LESS THAN (2001,7),
+   PARTITION q3_2001    VALUES LESS THAN (2001,10),
+   PARTITION q4_2001    VALUES LESS THAN (2002,1),
+   PARTITION future     VALUES LESS THAN (MAXVALUE,0));
+
+REM  12-DEC-2000
+INSERT INTO sales_demo VALUES(2000,12,12, 1000);
+REM  17-MAR-2001
+INSERT INTO sales_demo VALUES(2001,3,17, 2000);
+REM  1-NOV-2001
+INSERT INTO sales_demo VALUES(2001,11,1, 5000);
+REM  1-JAN-2002
+INSERT INTO sales_demo VALUES(2002,1,1, 4000);
+The year value for 12-DEC-2000 satisfied the first partition, before2001, so no further evaluation is needed:
+
+SELECT * FROM sales_demo PARTITION(before2001); //手动指定分区名字
+
+      YEAR      MONTH        DAY AMOUNT_SOLD
+---------- ---------- ---------- -----------
+      2000         12         12        1000
+```
+
+3.手动指定2个分区
+```
+SELECT * FROM sales_demo PARTITION(before2001),分区2
+```
+
+4.2个分区 + 使用union
+

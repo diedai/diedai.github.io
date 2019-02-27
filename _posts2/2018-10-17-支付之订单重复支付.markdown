@@ -1,0 +1,180 @@
+---
+layout:     post
+title:      "支付之订单重复支付"
+subtitle:   " \"如何防止订单重复支付\""
+date:       2018-10-17 06:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - 支付
+---
+
+
+# 重复支付到底指什么？什么情况下会导致重复支付呢？  
+下游商家的同一笔订单，在支付系统生成了2笔订单，支付的时候就会支付2次。
+
+所以，问题的关键在于避免支付系统生成2笔订单，或者说，要确保支付系统只生成1笔订单。这是第一点，就是只生成1笔订单。
+
+第二点，现在要对这笔订单数据进行支付，如果商家重复点击支付按钮，支付系统这边只有1笔订单，而且取到的订单数据始终是同一笔订单数据。
+
+---
+总结    
+支付系统确保2点  
+1.生成订单的时候，确保只生成1笔订单数据  
+2.支付的时候，确保取到的始终是同一笔订单数据
+
+---
+流程图
+
+![](https://user-gold-cdn.xitu.io/2018/12/7/1678727ddca362f5?w=3331&h=1713&f=png&s=243498)
+
+# 如何确保支付系统只生成1笔订单数据
+技术    
+1.缓存  
+2.token //UUID
+
+---
+步骤  
+1.生成订单 //把订单数据放到缓存  
+cache.add(token,order); //token传给商家客户端
+
+//代码
+```
+/**
+	 * 收款码参数验证网关
+	 * @return
+	 */
+	@RequestMapping("/checkpay")
+	public ModelAndView checkpay(MerchantDTO merchantDTO){
+		ModelAndView mav=new ModelAndView("dopay");
+		try {
+			//1.校验参数
+			log.info("merchantDTO info is :"+merchantDTO);
+	     	ValidateHelper.asertPass(merchantDTO);
+	     	
+	     	payService.handleAbnormalUser(merchantDTO.getMerchantId());
+	     	
+//	     	//2.组装订单对象
+	     	Order order = payService.bizCheckMerchant(merchantDTO); //生成订单数据
+	     	
+	     	String tokenId = UUIDValueGenerator.generateValue();
+	     	
+//			//3.存储商户信息在缓存
+			cache.add(tokenId, 5*60, order); //订单数据放到缓存
+			
+			mav.addObject("tokenId",tokenId); //token传给客户端
+			mav.addObject("siteId",merchantDTO.getSiteId());
+			
+		} catch (ValidateException ve) {
+			log.info(ve.getMessage());
+			mav.addObject("msg", ve.getMessage());
+			mav.setViewName("error");
+		}catch (BizException be){
+			log.info(be.getMessage());
+			mav.addObject("msg", be.getMessage());
+			mav.setViewName("error");
+		}catch (Exception e){
+			log.info(e.getMessage());
+			mav.addObject("msg", e.getMessage());
+			mav.setViewName("error");
+		}
+		return mav;
+	}
+```
+
+2.支付  //从缓存取订单数据  
+cache.get(token);
+
+```
+/**
+	 * 收款码充值支付网关
+	 * @author 
+	 * @param request response dopayDTO
+	 */
+	@RequestMapping("/dopay")
+	public void dopay(HttpServletRequest request, HttpServletResponse response, @ModelAttribute DopayDTO dopayDTO ){
+		ResposeDTO rseponseDTO = new ResposeDTO();
+		try {
+			
+			//1.校验参数
+			log.info("dopayDTO info is :"+dopayDTO);
+	     	ValidateHelper.asertPass(dopayDTO);
+			Order order = (Order) cache.get(dopayDTO.getTokenId()); //支付的时候：从缓存取订单数据
+			
+			if(null == order){ //缓存数据失效
+				throw new BizException("订单已失效");
+			}
+			
+			//金额校验
+			if(!dopayDTO.getOrderMoney().toString().matches("^(?!(0[0-9]{0,}$))[0-9]{1,}[.]{0,}[0-9]{0,2}$")){
+				rseponseDTO.setStatus(ResponseStatus.MOBILE_STATUS_INPUTYZ.getCode());
+				rseponseDTO.setRemark(ResponseStatus.MOBILE_STATUS_INPUTYZ.getDesc());
+				outJson(rseponseDTO, response);
+				return;
+				
+			}
+			if(Double.valueOf(dopayDTO.getOrderMoney().toString())>Double.valueOf(MAXPAYAMT)){
+				rseponseDTO.setStatus(ResponseStatus.MOBILE_STATUS_MAXAMT.getCode());
+				rseponseDTO.setRemark(ResponseStatus.MOBILE_STATUS_MAXAMT.getDesc());
+				outJson(rseponseDTO, response);
+				return;
+
+			}
+			
+			if(Double.valueOf(dopayDTO.getOrderMoney().toString())<Double.valueOf(MINPAYAMT)){
+				rseponseDTO.setStatus(ResponseStatus.MOBILE_STATUS_MINAMT.getCode());
+				rseponseDTO.setRemark(ResponseStatus.MOBILE_STATUS_MINAMT.getDesc());
+				outJson(rseponseDTO, response);
+				return;
+			}
+		
+			//2.处理业务
+			GetPayCommandResponse getPayCommandResponse =  payService.bizDopay(dopayDTO,order); //1.保存订单到数据库 2.调用支付服务
+			
+			//3.返回参数
+			rseponseDTO.setStatus(ResponseStatus.MOBILE_STATUS_SUCCESS.getCode());
+			rseponseDTO.setPostAddress(getPayCommandResponse.getPostAddress());
+			rseponseDTO.setParamsMap(getPayCommandResponse.getParams());
+			outJson(rseponseDTO, response);
+			
+		} catch (ValidateException ve) {
+			log.error(ve.getMessage(),ve);
+			rseponseDTO.setStatus(ResponseStatus.MOBILE_STATUS_ERROR.getCode());
+			rseponseDTO.setRemark(ResponseStatus.MOBILE_STATUS_ERROR.getDesc());
+			outJson(rseponseDTO, response);
+		}catch (BizException be){
+			log.error(be.getMessage(),be);
+			rseponseDTO.setStatus(ResponseStatus.MOBILE_STATUS_ERROR.getCode());
+			rseponseDTO.setRemark(ResponseStatus.MOBILE_STATUS_ERROR.getDesc());
+			outJson(rseponseDTO, response);
+		}catch (Exception e) {
+			log.error(e.getMessage(),e);
+			rseponseDTO.setStatus(ResponseStatus.MOBILE_STATUS_ERROR.getCode());
+			rseponseDTO.setRemark(ResponseStatus.MOBILE_STATUS_ERROR.getDesc());
+			outJson(rseponseDTO, response);
+		}
+		
+	}
+```
+
+# 幂等
+能解决上文提到的问题，就叫幂等。
+
+就是同一笔数据，不能重复处理。或者说，同一笔数据，处理结果一样。
+
+
+---
+什么操作幂等？什么操作不幂等？  
+1.查询 //天然幂等
+2.修改 //不幂等，需要解决幂等的问题
+
+# 如何防止重复提交
+就是如何防止重复电点击提交按钮？  
+前端处理，置灰按钮。
+
+# 参考
+https://tech.meituan.com/distributed_system_mutually_exclusive_idempotence_cerberus_gtis.html
+
+
+

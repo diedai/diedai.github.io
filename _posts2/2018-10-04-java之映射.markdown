@@ -1,0 +1,317 @@
+---
+layout:     post
+title:      "java之映射"
+subtitle:   " \"java映射类\""
+date:       2018-10-04 06:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - DataStructure&Algorithm
+---
+
+# 哈希是一种数据结构
+键值对。
+
+# 底层原理
+基于数组。
+
+1.key
+key——》哈希算法：得到哈希值。  
+为什么要使用哈希算法得到一个哈希值？因为这个哈希值是要拿来作为数组的索引的。  
+不能把key当做索引吗？
+
+2.value
+
+---
+数组的索引  
+1.数字作为索引   
+数据不多的情况下，比如，最多几万个数据。
+
+2.字符串作为索引   
+有的应用场景是没有数字的，只能使用字符串作为key。比如，字典。
+
+---
+但是数组只能把数字作为索引，怎么办？ 把字符串按照某种算法转换为数字，比如，每个字母都有一个ASCII编码对应的数字。所以如果这个算法是基于ASCII编码 + 某种计算规则，就可以得到这个单词的数字，这个数字就可以作为数组的索引。
+
+---
+上面的算法有点简单，可能会带来一种问题，就是很多不同的单词计算之后得到的数字是一样的。怎么办？  
+使用更复杂的算法。这种更复杂的算法就是哈希算法。作用就是为了解决字符串——》数字作为数组索引带来的索引值相同的问题。
+
+具体就是让字符串——》数字的值更加分散，更加大。这样就不容易重复。
+
+3.key——》哈希算法：得到哈希值
+
+# 速度
+哈希的优点就是速度快，因为哈希数据结构基于数组，速度是1。
+
+插入和删除呢？
+
+---
+缺点  
+数组大小固定。
+
+# 哈希函数
+
+#### 什么是哈希函数？
+1.输入  
+任意长度的数据
+
+2.输出  
+固定长度的数据。比如，MD5 100多位；SHA-2 200多位。位数越多，越安全，因为越不容易重复。
+
+总结   
+本质上是一个算法，按固定的算术规则计算得到的值。
+
+从数学的角度看，就是一个函数。函数也是输入和输出。
+
+#### MD5
+
+#### SHA-2
+
+#### RSA也是
+只不过有秘钥。
+
+# 什么是映射?
+1.就是键值对
+
+2.映射=数组(数据结构) + 哈希函数(算法)  
+1）写数据  
+输入：键  
+输出：哈希值 //作用：作为数组的索引
+
+算法：哈希函数
+
+2）读数据  
+输入：键  
+输出：固定值  
+最终输出：键值对的值
+
+算法：哈希函数
+
+![](https://user-gold-cdn.xitu.io/2018/12/3/16774b0c6906014e?w=630&h=460&f=png&s=24344)
+
+# jdk里的映射之发展史
+1.最早是Hashtable  
+早期只有Hashtable。
+
+2.后来是HashMap  
+jdk5之后。
+
+# Hashtable
+![](https://user-gold-cdn.xitu.io/2018/12/3/16774b15cbd07542?w=778&h=596&f=png&s=77683)
+
+# Hashtable与HashMap的区别？
+底层原理和底层实现？  
+HashMap是对Hashtable的完善？具体是完善了什么东西？
+底层原理差不多，主要是细节，包括算法细节的完善。
+
+# Hashtable与 字典类Dictionary和属性类Properties的区别？
+1）HashMap实现了Map接口，Hashtable继承了抽象类Dictionary
+旧版本jdk：Hashtable以及实现的接口都是旧版本jdk1.0。
+新版本jdk：HashMap以及实现的接口都是新版本jdk2.0。
+
+2）读取配置文件
+旧版本jdk：Properties类也是旧版本jdk1.0，继承了HashMap，作用是专门用于从配置文件读取键值对。
+新版本jdk：HashMap没有专门用于从配置文件读取键值对的子类。但是开源项目common configuration封装了HashMap，提供了读取配置文件的功能。
+
+# 总结
+1.hash哈希/hash table 哈希表  
+2.散列/散列表  
+3.字典dictionary  
+4.关联数组associated array  
+5.map映射  
+以上所有叫法都是映射，什么是映射？就是键值对。
+
+# 映射函数(即哈希函数)又是干什么的？有什么作用？
+映射 = 数组(数据结构) + 映射函数(算法)
+
+## 哈希表
+separate chaining and open addressing.  
+1.直接定址法？  
+2.数字分析法？  
+
+## 平衡二叉树(红黑树)？
+
+# 是否同步
+1.HashMap
+不同步。
+
+2.ConcurrentHashMap
+与HashMap的唯一区别就是同步。
+
+注：Hashtable也是同步的，但是已被弃用！
+
+3.Collections.同步Map();
+与并发HashMap的区别？
+并发HashMap，是使用同步关键字synchronized同步方法。//Hashtable的同步也是同步方法。
+
+Collections.同步Map(); 是使用使用同步关键字同步对象和同步代码块。//其他的Collections.同步集合数据类型/映射数据类型(); 也是同理。
+
+
+# 是否插入有序LinkedHashMap
+与HashMap的唯一区别就是确保插入顺序。
+
+实现原理也是双链表。
+
+# 是否数据有序TreeMap
+与HashMap的唯一区别是，数据有序。
+
+---
+List、Set、Map的区别？  
+1.List  
+是先插入数据到集合，然后想排序的时候再给数据排序。
+
+步骤  
+1）插入数据  
+2）排序数据  
+怎么排序？使用各种算法书籍里都有介绍的排序算法。
+
+排序算法是怎么排序的？本质是比较数据和交换数据，但是研究排序算法的目的是为了更快的排序，所以排序算法本质上是在研究如何更快的比较数据和交换数据。
+
+2.TreeSet/TreeMap  
+是插入数据的时候，就开始排序，也是比较数据和交换数据。
+
+如果是普通的比较数据和数据数据，那么速度很慢。  
+怎么才能快起来？使用平衡二叉树(jdk使用的是平衡二叉树中的红黑树)！
+
+# 最佳实践
+1.Hashtable及其实现接口和子类  
+已经被官方弃用。
+
+2.HashMap、并发ConcurrentHashMap、数据有序TreeMap、插入有序LinkedHashMap  
+推荐使用。
+
+# map的速度
+1.读    
+1  
+
+2.写  
+1
+
+# map的底层数据结构？
+1.数组  //读快，速度1  
+数组[hashcode]。
+
+```
+/**
+     * The table, resized as necessary. Length MUST Always be a power of two.
+     */
+    transient Entry<K,V>[] table = (Entry<K,V>[]) EMPTY_TABLE; //数组
+```
+
+2.链表 //写快，速度1
+
+```
+static class Entry<K,V> implements Map.Entry<K,V> {
+        final K key;
+        V value;
+        Entry<K,V> next; //链表
+        int hash;
+
+        /**
+         * Creates new entry.
+         */
+        Entry(int h, K k, V v, Entry<K,V> n) {
+            value = v;
+            next = n;
+            key = k;
+            hash = h;
+        }
+
+        public final K getKey() {
+            return key;
+        }
+
+        public final V getValue() {
+            return value;
+        }
+
+        public final V setValue(V newValue) {
+            V oldValue = value;
+            value = newValue;
+            return oldValue;
+        }
+
+        public final boolean equals(Object o) {
+            if (!(o instanceof Map.Entry))
+                return false;
+            Map.Entry e = (Map.Entry)o;
+            Object k1 = getKey();
+            Object k2 = e.getKey();
+            if (k1 == k2 || (k1 != null && k1.equals(k2))) {
+                Object v1 = getValue();
+                Object v2 = e.getValue();
+                if (v1 == v2 || (v1 != null && v1.equals(v2)))
+                    return true;
+            }
+            return false;
+        }
+
+        public final int hashCode() {
+            return Objects.hashCode(getKey()) ^ Objects.hashCode(getValue());
+        }
+
+        public final String toString() {
+            return getKey() + "=" + getValue();
+        }
+
+        /**
+         * This method is invoked whenever the value in an entry is
+         * overwritten by an invocation of put(k,v) for a key k that's already
+         * in the HashMap.
+         */
+        void recordAccess(HashMap<K,V> m) {
+        }
+
+        /**
+         * This method is invoked whenever the entry is
+         * removed from the table.
+         */
+        void recordRemoval(HashMap<K,V> m) {
+        }
+    }
+```
+
+
+# map如何防止hashcode(即数组索引)重复？
+这里说的hashcode重复，是指索引重复，hashcode就是索引。
+
+首先，我们知道map的key需要经过hash转换为hashcode，hashcode才是最终的数组索引，map就是数组。 
+
+所以，索引重复有2种情况，  
+1.key相同  
+因为hash算法相同，如果key相同，得到的hashcode肯定相同。  
+2.key不同
+虽然，hash算法将hashcode这个值散列得足够分散，一般情况下不会出现重复的情况。  
+但是，理论上存在重复的情况。
+
+如何解决key不同情况下的hashcode值相同这个问题，就是hash算法要解决的问题。
+
+# 如果hashcode重复，map如何处理？
+1.key相同
+因为是相同的key，相同的hashcode，所以这是重复数据，就不需要插入。map会判断是否存在该key/hashcode。
+
+2.key不同  
+其实这种情况，虽然key不同，但是hashcode相同，map的处理方式仍然同上，和上一种情况一样。  
+但是，key不同的情况，必须是要插入数据的。  
+所以，只能使用hash算法尽量保证不同key的hashcode不同。不同的hash算法，就是为了解决这个问题。
+
+# hash算法/散列函数？
+1.没有解决冲突的算法 //直接定址
+2.可以解决冲突的算法 //开放探测定址
+
+http://www.nowamagic.net/academy/detail/3008050
+
+# map是数组，那是不是一段连续的存储空间？
+是的。
+
+# key、hashcode和索引i之间的关系？
+key——》hashcode(hash算法)——》i(数组索引)。
+
+# hash of key，是如何计算的？
+1.hashCode()方法  
+2.位移
+
+# 参考
+http://zhaox.github.io/2016/07/05/hashmap-vs-hashtable
