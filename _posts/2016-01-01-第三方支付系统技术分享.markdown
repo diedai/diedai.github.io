@@ -149,7 +149,7 @@ common框架 //启动服务，memcache缓存，metaQ消息，mongoDB，http请�
 等等
 
 2.大表  
-1）按new/history划分  
+1）按new/history划分数据到2个库  
 2）表分区  
 partition by range (date)
 
