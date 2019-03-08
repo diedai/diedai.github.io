@@ -9,7 +9,6 @@ catalog: true
 tags:
     - 支付
     - 数据库
-    - database
 ---
 
 # 数据量
