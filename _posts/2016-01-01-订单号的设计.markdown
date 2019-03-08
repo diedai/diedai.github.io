@@ -2,7 +2,7 @@
 layout:     post
 title:      "订单号的设计"
 subtitle:   " \"流水号\""
-date:       2016-01-02 06:00:00
+date:       2016-01-01 06:00:00
 author:     "青乡"
 header-img: "img/post-bg-2015.jpg"
 catalog: true
