@@ -1,0 +1,185 @@
+---
+layout:     post
+title:      "kingbase预研"
+subtitle:   " \"国产数据库厂商kingbase\""
+date:       2016-01-01 06:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - 数据库
+---
+
+
+# 连接kingbase服务器
+1.jdbc驱动jar包  
+2.配置  
+用户名密码   
+连接url  
+驱动类：com.kingbase.Driver
+
+```
+# kingbase
+
+jdbc.driverClass=com.kingbase.Driver
+
+jdbc.url=jdbc:kingbase://192.168.2.145:54325/kk
+
+
+# kingbase
+
+jdbc.user=SYSTEM
+
+jdbc.password=Kingbase
+
+
+```
+# 连接池druid
+删除WallFilter配置
+
+```
+<!-- 配置监控统计拦截的filters -->
+
+		<property name="filters" value="config,slf4j" />
+
+		<property name="proxyFilters">
+
+		    <list>
+
+			    <ref bean="stat-filter" />
+
+<!-- 			    <ref bean="wall-filter" /> --> <!--删除。kingbase不支持。-->
+
+		    </list>
+
+	    </property>
+
+
+```
+
+# spring
+添加kingbase的配置项。
+
+```
+<bean id="vendorProperties" class="org.springframework.beans.factory.config.PropertiesFactoryBean">  
+
+    	<property name="properties">  
+
+        	<props>  
+
+            	<prop key="Oracle">oracle</prop>  
+
+            	<prop key="MySQL">mysql</prop>  
+
+            	<prop key="Kingbase">kingbase</prop>   <!--添加-->
+
+        	</props>  
+
+    	</property>  
+
+	</bean>  
+
+
+```
+
+---
+作用  
+找到mybatis对应的数据库厂商的sql：数据库厂商属性——》mybatis对应的数据库sql
+
+# mybatis
+不同版本的sql，大部分和oracle一样。
+
+# hibernate
+方言  
+注：可以咨询EKP同事，已经有对应的解决方案。
+
+# 语法
+#### id自增
+使用序列号，和oracle一样。
+
+```
+create table "PUBLIC"."KK_USERS4"( //创建表
+"USER_ID" numeric(11,0) not null,
+"USER_NAME" varchar(64),
+primary key("USER_ID") using index tablespace "SYSTEM") without oids
+tablespace "SYSTEM";
+
+CREATE SEQUENCE "PUBLIC"."KK_USERS4_SEQ" //创建序列号
+ INCREMENT 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 2 CACHE 10 NO CYCLE;
+```
+
+
+#### limit
+使用rownum，和oracle一样。
+
+```
+select *
+from KK_USERS4 t
+where rownum < 100
+```
+
+#### 关键字
+sql里不能包含position关键字 否则报错。
+
+---
+例如  
+1.select t.position position //报错：别名不能是关键字  
+from kk_users
+
+2.select t.position //正确  
+from kk_users
+
+3.select position //正确  
+from kk_users
+
+
+---
+原因  
+position是kingbase的关键字。
+
+
+#### 大小写敏感
+创建数据库时，应该设置为大小写不敏感。否则，创建表时，表名字和字段名字如果是小写就会报错。
+
+```
+create table "PUBLIC"."KK_USERS4"(
+"USER_ID" numeric(11,0) not null,
+"USER_NAME" varchar(64),
+primary key("USER_ID") using index tablespace "SYSTEM") without oids
+tablespace "SYSTEM"
+```
+
+https://blog.csdn.net/lanchengtan8773/article/details/81711235
+
+# 总结
+一、kingbase与其他数据库的兼容性  
+大部分与oracle类似。
+
+二、支持kingbase带来的问题  
+前期  
+1.sql  
+已有的sql，很多是oracle和mysql不同版本的sql，如果要支持kingbase，需要增加对应版本的sql。  
+2.源码  
+dao层对oracle和mysql作了判断的地方，很多类的方法需要跟着修改，以便支持kingbase。
+
+后期  
+1.文档和资料少  
+2.开发测试维护较麻烦
+
+# 参考
+1.sql手册  
+https://max.book118.com/html/2018/0731/7124015134001141.shtm
+
+2.程序员开发手册  
+https://max.book118.com/html/2017/1125/141519186.shtm
+
+3.kingbase与oracle的对比      
+https://wenku.baidu.com/view/261f41eff8c75fbfc77db201.html
+
+4.备份和维护
+https://oss.aliyuncs.com/netmarket/product/4e2343f2-2a8d-4d2c-be30-2914251837bd.docx
+
+以上都是官方文档。
+
+
+
