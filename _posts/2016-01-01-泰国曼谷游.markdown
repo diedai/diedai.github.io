@@ -1,13 +1,13 @@
 ---
 layout:     post
-title:      "kingbase预研"
-subtitle:   " \"国产数据库厂商kingbase\""
+title:      "泰国曼谷游"
+subtitle:   " \"阿福\""
 date:       2016-01-01 06:00:00
 author:     "青乡"
 header-img: "img/post-bg-2015.jpg"
 catalog: true
 tags:
-    - 数据库
+    - 生活
 ---
 
 
