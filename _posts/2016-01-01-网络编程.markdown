@@ -1,0 +1,191 @@
+---
+layout:     post
+title:      "网络编程"
+subtitle:   " \"Net Program\""
+date:       2016-01-01 06:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - 网络编程
+---
+
+
+
+
+# TCP：连接为什么是3次分节/分组/握手，关闭为什么是4次？
+#### 连接
+步骤  
+1.客户端连接  
+2.服务器确认接受到客户端连接  
+服务器连接 //这两步合二为一  
+3.客户端确认接受到服务器连接  
+
+#### 关闭
+步骤  
+1.客户端调用.close()主动关闭  
+2.服务器确认接受到客户端关闭  
+3.服务器调用.close()关闭 //2和3是分开的，因为3需要服务器显式调用.close()  
+4.客户端确认接收到服务器关闭  
+
+
+---
+
+参考  
+unix网络编程
+
+# 长连接
+#### 什么是长连接
+所有的连接1.http连接 2.数据库连接。都分为1.短链接2.长连接。  
+任何一个连接(进程间通信)，生命周期是1.连接.connect() 2.关闭.close()。  
+只要套接字对象没有主动.close()，它就是长连接；关闭之后，就是短链接。  
+数据库连接的底层也是tcp套接字。所有的连接(进程间通信)，都是tcp socket。
+
+#### 应用场景
+高频通信  
+1.即时通讯  
+客户端A——服务器——》客户端B
+
+2.股票  
+高频通信，且服务器主动推送更新数据到客户端。
+
+
+---
+参考  
+https://www.infoq.cn/article/UiKyF*4zxplSrpWZ5km1
+https://www.zhihu.com/question/22677800
+
+#### 配置keep alive
+只有服务器和客户端都支持长连接，并且都开启长连接配置，才生效。  
+1.客户端  
+http 1.0中默认是关闭的，需要在http头加入"Connection: Keep-Alive"，才能启用Keep-Alive；http 1.1中默认启用Keep-Alive，如果加入"Connection: close "，才关闭。目前大部分浏览器都是用http1.1协议，也就是说默认都会发起Keep-Alive的连接请求了，所以是否能完成一个完整的Keep-Alive连接就看服务器设置情况。  
+2.服务器  
+tomcat配置。
+
+---
+参考  
+https://www.cnblogs.com/skynet/archive/2010/12/11/1903347.html
+
+
+# Reactor模式
+2个特点，  
+1.一或多转发器  
+Reactor就是转发器Dispatcher，转发请求给处理器类处理业务逻辑。  
+2.多线程
+多线程/线程池处理每个业务，不让多核cpu闲着。
+
+
+file:///var/folders/m9/yshd99dx1g38gtyxvv3k201r0000gn/T/WizNote/ec30cfe6-a9d2-4dc0-a759-a096804357c7/index_files/2b39d85e-e4b1-4f99-85c0-9c32dbc097f4.jpg
+![](https://user-gold-cdn.xitu.io/2019/3/14/1697ce7bccb40001?w=600&h=396&f=png&s=246704)
+
+
+---
+参考  
+https://www.cnblogs.com/doit8791/p/7461479.html
+http://ifeve.com/netty-reactor-4/
+https://blog.csdn.net/russell_tao/article/details/9111769 //高性能网络编程系列文章-陶辉 nginx作者
+
+http://www.dre.vanderbilt.edu/~schmidt/PDF/reactor-siemens.pdf //并发包作者
+
+
+
+# 编程模型
+#### 同步阻塞
+Java的I/O发展简史 从JDK1.0到JDK1.3，Java的I/O类库都非常原始，很多UNIX网络编程中的概念或者接口在I/O类库中都没有体现，例如Pipe、Channel、Buffer和Selector等。2002年发布JDK1.4时，NIO以JSR-51的身份正式随JDK发布。它新增了个java.nio包，提供了很多进行异步I/O开发的API和类库，主要的类和接口如下。 进行异步I/O操作的缓冲区ByteBuffer等； 进行异步I/O操作的管道Pipe； 进行各种I/O操作（异步或者同步）的Channel，包括ServerSocketChannel和SocketChannel； 多种字符集的编码能力和解码能力； 实现非阻塞I/O操作的多路复用器selector； 基于流行的Perl实现的正则表达式类库； 文件通道FileChannel。
+
+李林锋. Netty权威指南 (p. 9). 电子工业出版社. Kindle 版本. 
+
+#### 异步非阻塞
+java nio
+
+#### 多路复用
+1）java nio-Selector  
+2）基于操作系统的多路复用技术poll(文件描述符1000个)  
+epoll(受限于操作系统的内存，1G/10万个=10M)  
+
+---
+select最大的缺陷就是单个进程所打开的FD是有一定限制的，它由FD_SETSIZE设置，默认值是1024。对于那些需要支持上万个TCP连接的大型服务器来说显然太少了。可以选择修改这个宏然后重新编译内核，不过这会带来网络效率的下降。我们也可以通过选择多进程的方案（传统的Apache方案）解决这个问题，不过虽然在Linux上创建进程的代价比较小，但仍旧是不可忽视的，另外，进程间的数据交换非常麻烦，对于Java由于没有共享内存，需要通过Socket通信或者其他方式进行数据同步，这带来了额外的性能损耗，增加了程序复杂度，所以也不是一种完美的解决方案。值得庆幸的是，epoll并没有这个限制，它所支持的FD上限是操作系统的最大文件句柄数，这个数字远远大于1024。例如，在1GB内存的机器上大约是10万个句柄左右，具体的值可以通过cat /proc/sys/fs/file- max察看，通常情况下这个值跟系统的内存关系比较大。
+
+李林锋. Netty权威指南 (p. 7). 电子工业出版社. Kindle 版本. 
+
+---
+目前支持I/O多路复用的系统调用有
+select、pselect、
+poll、epoll，
+在Linux网络编程过程中，很长一段时间都使用select做轮询和网络事件通知，然而select的一些固有缺陷导致了它的应用受到了很大的限制，最终Linux不得不在新的内核版本中寻找select的替代方案，最终选择了epoll。epoll与select的原理比较类似，为了克服select的缺点，epoll作了很多重大改进，现总结如下。
+
+李林锋. Netty权威指南 (p. 7). 电子工业出版社. Kindle 版本. 
+
+
+
+# java nio-3大核心类
+#### 缓冲区ByteBuffer
+1.数据  
+其实就是一个字节数组byte[] bytes  
+2.操作
+    
+#### 通道Channel
+1.io 基于流Stream   
+单向，即只能写或读，不能同时写读(写类和读类是分开的)  
+2.nio 基于通道Channel  
+双向 全双工，同一个类既可以写也可以读，即可以同时写和读，具体实现是写和读的数据分别包含写和读的字段标志。  
+底层是基于unix-通道。
+
+#### 多路复用Selector
+多路复用器Selector 在本节中，我们将探索多路复用器Selector，它是Java NIO编程的基础，熟练地掌握Selector对于掌握NIO编程至关重要。多路复用器提供选择已经就绪的任务的能力。简单来讲，Selector会不断地轮询注册在其上的Channel，如果某个Channel上面有新的TCP连接接入、读和写事件，这个Channel就处于就绪状态，会被Selector轮询出来，然后通过SelectionKey可以获取就绪Channel的集合，进行后续的I/O操作。 
+
+一个多路复用器Selector可以同时轮询多个Channel，由于JDK使用了epoll()代替传统的select实现，所以它并没有最大连接句柄1024/2048的限制。这也就意味着只需要一个线程负责Selector的轮询，就可以接入成千上万的客户端，这确实是个非常巨大的进步。 下面，我们通过NIO编程的序列图和源码分析来熟悉相关的概念，以便巩固我们前面所学的NIO基础知识。
+
+李林锋. Netty权威指南 (pp. 27-28). 电子工业出版社. Kindle 版本. 
+
+
+# java nio-发展史
+#### 2000年 jdk4
+1.0
+
+#### 2010年 jdk7
+2.0，升级版。
+
+# socket的文件描述符对象字段/文件描述符是否关闭的标志字段
+#### 文件描述符是什么？ 
+每个套接字都有一个文件描述符对象：统计打开文件数量。
+
+服务器端-服务器套接字接受的客户端套接字连接数量，每增加一个连接 数量加1。
+
+---
+1.linux里，任何一种资源都是文件。socket也是。  
+2.Socket对象包含了文件描述符字段，文件描述符字段包含了打开文件数量字段。
+
+#### 文件描述符的最大数量
+1.一个进程打开的文件数量有上限  
+linux1024默认。
+
+2.一个套接字就是一个进程  
+所以服务器套接字接受客户端套接字的连接数量也有上限。
+
+
+#### 应用场景
+服务器端-服务器套接字  
+1.文件描述符对象  
+统计客户端套接字数量  
+2.文件描述符是否关闭字段  
+1）没关闭  
+可以接受连接  
+2）已经关闭  
+不能接受连接  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
