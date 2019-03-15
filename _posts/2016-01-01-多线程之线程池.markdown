@@ -1,0 +1,523 @@
+---
+layout:     post
+title:      "多线程之线程池"
+subtitle:   " \"jdk并发包-线程池\""
+date:       2016-01-01 06:00:00
+author:     "青乡"
+header-img: "img/post-bg-2015.jpg"
+catalog: true
+tags:
+    - 多线程
+---
+
+
+
+# 线程池分类
+#### 单线程
+既然是单线程 为什么还要使用线程池？因为1.单线程2.数据集合。使用数据集合作一个缓冲。
+
+#### 多线程
+1.不显式添加数据集合 使用默认数据集合
+
+2.显式添加数据集合  
+例如 有界队列 配置数据的数量
+
+#### 定时线程池
+
+---
+一般情况下，系统业务较多，会包含多个线程池，分别处理不同的业务类型。
+
+
+# 线程池的数据流
+数据是被新创建的线程消费，还是被复用线程消费，还是被暂时放到缓存里，还是阻塞添加到有界队列。根据线程数量，分4种情况：  
+1.线程数量0——》最小线程数量  
+1）一开始：创建新的线程，线程不复用  
+2）后期：线程复用  
+
+2.最小数量——》有界队列  
+数据线放到有界队列
+
+3.有界队列满——》最大线程数量  
+创建新的线程
+
+4.有界队列满，并且最大数量满  
+阻塞添加数据到有界队列，一旦有界队列数据被消费，立马写数据到有界队列。
+
+
+注：根据需求不同，可以改变2和3的顺序。jdk线程池默认是1234。  
+注：最大线程数量如果没配置，默认和最小线程数量一样。
+
+# 代码示例
+---
+//支付-实名认证
+```
+/** 10个线程检查异步订单,当队列满了之后，等待 */
+
+	protected static Executor executor = new ThreadPoolExecutor(10//最小线程数量, 10//最大线程数量, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(1000 //有界队列),
+
+			new RejectedExecutionHandler() { //有界队列满，阻塞写数据到有界队列
+
+				@Override
+
+				public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
+
+					if (!executor.isShutdown()) {
+
+						try {
+
+							executor.getQueue().put(r);
+
+						} catch (InterruptedException e) {
+
+							log.error(e.getMessage(), e);
+
+						}
+
+					}
+
+				}
+
+			});
+
+
+```
+
+//支付-处理订单
+```
+// 订单查询普通银行线程
+
+	public static ExecutorService checkExeService = Executors.newFixedThreadPool(6 //最小线程数量);
+
+
+```
+
+---
+//支付-结算
+```
+private static ExecutorService executorService = Executors.newFixedThreadPool(3 //最小线程数量); 
+
+
+```
+
+---
+//支付-清除缓存数据
+```
+private ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+
+
+
+public void init(){
+
+		//每3分钟执行一次 
+
+		executor.scheduleWithFixedDelay(new CheckListener(), SCHEDULE_INIT,SCHEDULE_TIME, TimeUnit.MINUTES);
+
+	}
+
+
+
+
+
+
+```
+
+
+
+
+
+---
+
+```
+
+import java.util.concurrent.BlockingQueue;
+
+import java.util.concurrent.Callable;
+
+import java.util.concurrent.Future;
+
+import java.util.concurrent.LinkedBlockingQueue;
+
+import java.util.concurrent.RejectedExecutionHandler;
+
+import java.util.concurrent.ThreadFactory;
+
+import java.util.concurrent.ThreadPoolExecutor;
+
+import java.util.concurrent.TimeUnit;
+
+
+
+import org.slf4j.Logger;
+
+import org.slf4j.LoggerFactory;
+
+
+
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
+
+
+/**
+
+ * JDK默认线程池：CoreSize-->Core用完了，进队列-->队列满了，开新线程直到MaxSize-->MaxSize也到了，执行Reject策略
+
+ * 我们希望的线程池：CoreSize-->Core用完了，开新线程直到MaxSize-->MaxSize也到了，进队列-->队列满了，执行Reject策略
+
+ * 
+
+ * 参照tomcat的线程池实现思路，实现了GZH线程池
+
+ * 
+
+ * https://segmentfault.com/a/1190000008052008
+
+ *
+
+ */
+
+public class GZHThreadPool {
+
+	private final static Logger logger = LoggerFactory.getLogger(GZHThreadPool.class);
+
+
+
+	private static final TimeUnit unit = TimeUnit.SECONDS;// keepAliveTime 的单位
+
+	private static ThreadPoolExecutor onlinePoolExecutor = null;
+
+	private static ThreadPoolExecutor offlinePoolExecutor = null;
+
+	private static GZHThreadPool kkThreadPool=null;
+
+	
+
+    private GZHThreadPool(){
+
+    }
+
+	
+
+	/**根据application.xml中的配置初始化线程池大小
+
+	 * 初始化线程池
+
+	 * @param minSize：最小线程数，空闲时，多余的线程自动销毁，收缩成最小值
+
+	 * @param maxSize:最大线程数
+
+	 * @param queueSize：最大队列长度
+
+	 * @param keepAlive：最小线程数之外的线程的最大空闲时间，单位为秒
+
+	 */
+
+	public static void init(int minSize, int maxSize, int queueSize //有界队列大小10万个数据，大型企业员工规模10万人以上, int keepAlive //空闲时间1分钟，如果1分钟之内空闲，那么被销毁) {
+
+
+
+		if (kkThreadPool == null) {
+
+			synchronized (GZHThreadPool.class) {
+
+				if (kkThreadPool == null) {
+
+
+
+					kkThreadPool = new GZHThreadPool();
+
+					// TaskQueue workQueue = new TaskQueue(queueSize);
+
+					// 创建一个有界队列
+
+					BlockingQueue<Runnable> onWorkQueue = new LinkedBlockingQueue<Runnable>(queueSize);
+
+					
+
+					BlockingQueue<Runnable> offWorkQueue = new LinkedBlockingQueue<Runnable>(queueSize);
+
+
+
+					// 丢弃任务并抛出RejectedExecutionException异常
+
+					RejectedExecutionHandler handler = new ThreadPoolExecutor.AbortPolicy();
+
+					// 创建线程工厂，自定义线程池名称
+
+					ThreadFactory onlineFactory = new ThreadFactoryBuilder().setNameFormat("GZHOnlinePool#%d-").build();
+
+
+
+					ThreadFactory offlineFactory = new ThreadFactoryBuilder().setNameFormat("GZHOfflinePool#%d-").build();
+
+
+
+					// 构造线程池
+
+					onlinePoolExecutor = new ThreadPoolExecutor(minSize, maxSize, keepAlive, unit, onWorkQueue, onlineFactory, handler);
+
+
+
+					offlinePoolExecutor = new ThreadPoolExecutor(minSize, maxSize, keepAlive, unit, offWorkQueue, offlineFactory, handler);
+
+
+
+				}
+
+			}
+
+		}
+
+	}
+
+	/**
+
+	 * 任务执行的方法
+
+	 * @param task
+
+	 */
+
+	public static void execute(Runnable task) {
+
+		int queSize = onlinePoolExecutor.getQueue().size();
+
+		if(queSize >= 5000 && queSize < 20000){
+
+			logger.info("onlinePool Queue Size is {}",queSize);
+
+		}else if(queSize >= 20000){
+
+			logger.warn("onlinePool Queue Size is {}",queSize);
+
+		}
+
+		onlinePoolExecutor.execute(task);
+
+	}
+
+	
+
+	/**
+
+	 * 任务执行的方法
+
+	 * @param task
+
+	 */
+
+	public static void exeOfflineTask(Runnable task) {
+
+		int queSize = offlinePoolExecutor.getQueue().size();
+
+		if(queSize >= 5000 && queSize < 20000){
+
+			logger.info("offlinePool Queue Size is {}",queSize);
+
+		}else if(queSize >= 20000){
+
+			logger.warn("offlinePool Queue Size is {}",queSize);
+
+		}
+
+		offlinePoolExecutor.execute(task);
+
+	}
+
+	
+
+	/**
+
+	 * 任务执行的方法
+
+	 * @param <T>
+
+	 * @param task
+
+	 */
+
+	public static <T> Future<T> execute(Callable<T> task) {
+
+		int queSize = onlinePoolExecutor.getQueue().size();
+
+		if(queSize >= 5000 && queSize < 20000){
+
+			logger.info("onlinePool Queue Size is {}",queSize);
+
+		}else if(queSize >= 20000){
+
+			logger.warn("onlinePool Queue Size is {}",queSize);
+
+		}
+
+		return onlinePoolExecutor.submit(task);
+
+	}
+
+	
+
+	/**
+
+	 * 返回线程池中线程的总数
+
+	 * @return
+
+	 */
+
+	public static int getPoolSize(){
+
+		
+
+		return onlinePoolExecutor.getPoolSize();
+
+		
+
+	}
+
+
+
+	/**
+
+	 * 返回当前处于工作的线程数
+
+	 * @return
+
+	 */
+
+	public static int getActiveThreadCount(){
+
+		
+
+		return onlinePoolExecutor.getActiveCount();
+
+	}
+
+	/**
+
+	 * 返回当前任务队列中未处理的任务数
+
+	 * @return
+
+	 */
+
+	public static int getQueueSize(){
+
+		return onlinePoolExecutor.getQueue().size();
+
+	}
+
+	
+
+/*	public static void main(String[] argv) throws InterruptedException{
+
+		//init(5,10,50,60);
+
+		
+
+		
+
+	}*/
+
+	
+
+}
+
+
+
+
+```
+
+
+
+
+
+# 线程池的线程数量
+
+1.数量
+
+cpu + 1 //cpu密集型
+
+2*cpu + 1 //io密集型
+
+
+
+2.依据
+
+1）cpu密集型
+
+因为cpu已经很繁忙，基本上每个cpu都被一个线程占用，所以线程数量宜小，线程数量只需要比cpu数量多1就好，避免某个线程出问题导致有一个cpu闲置。
+
+
+
+2）io密集型
+
+因为io很繁忙，很多cpu可能在等待io完成，所以线程数量宜大。
+
+
+
+线程数量一般都是个位数，目标是使得每个cpu转起来，不让cpu处于闲置。但是，线程数量不能太多，因为会导致线程上下文切换，cpu切换线程上下文开销很大。
+
+
+
+
+
+---
+
+cpu数量可以动态获取
+
+
+
+public class ThreadPool {
+
+
+
+	public static void main(String[] args) {
+
+		Runtime runtime = Runtime.getRuntime();
+
+		System.out.println(runtime.availableProcessors()); //6核，输出12
+
+	}
+
+
+
+}
+
+
+
+
+
+
+---
+
+参考
+
+https://www.cnblogs.com/dennyzhangdd/p/6909771.html
+
+
+# 监控
+#### 如何判断线程是否闲置
+线程分类  
+1.线程池的线程  
+2.工作线程集合Worker  
+3.非工作线程集合的线程就是闲置线程  
+如果配置了线程池闲置时间，那么闲置线程会被销毁。  
+线程池会对每个非工作线程进行时间标记，超时就销毁。
+
+#### 如何获取活跃线程数量
+有方法可以调用。
+
+---
+方法具体如何实现？  
+从Worker里取。
+Worker里的线程就是正在执行任务的线程，线程执行完毕，就从Worker删除，但是没有从线程池删除。
+
+
+# 参考
+https://juejin.im/entry/58fada5d570c350058d3aaad
+
+
+
+
+
+
+
