@@ -126,6 +126,15 @@ public void init(){
 
 
 ---
+即时通讯
+```
+int minSize = properties.getPropertyAsIntWithDefault("threadPool.minSize", 50);
+			int maxSize = properties.getPropertyAsIntWithDefault("threadPool.maxSize", 200);
+			int queueSize = properties.getPropertyAsIntWithDefault("threadPool.queueSize", 100000);
+			int keepAlive = properties.getPropertyAsIntWithDefault("threadPool.keepAlive", 60);
+			XXThreadPool.init(minSize, maxSize, queueSize, keepAlive);
+```
+
 
 ```
 
@@ -165,7 +174,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
  * 
 
- * 参照tomcat的线程池实现思路，实现了GZH线程池
+ * 参照tomcat的线程池实现思路，实现了XX线程池
 
  * 
 
@@ -175,9 +184,9 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
  */
 
-public class GZHThreadPool {
+public class XXThreadPool {
 
-	private final static Logger logger = LoggerFactory.getLogger(GZHThreadPool.class);
+	private final static Logger logger = LoggerFactory.getLogger(XXThreadPool.class);
 
 
 
@@ -187,11 +196,11 @@ public class GZHThreadPool {
 
 	private static ThreadPoolExecutor offlinePoolExecutor = null;
 
-	private static GZHThreadPool kkThreadPool=null;
+	private static XXThreadPool XXThreadPool=null;
 
 	
 
-    private GZHThreadPool(){
+    private XXThreadPool(){
 
     }
 
@@ -215,15 +224,15 @@ public class GZHThreadPool {
 
 
 
-		if (kkThreadPool == null) {
+		if (XXThreadPool == null) {
 
-			synchronized (GZHThreadPool.class) {
+			synchronized (XXThreadPool.class) {
 
-				if (kkThreadPool == null) {
+				if (XXThreadPool == null) {
 
 
 
-					kkThreadPool = new GZHThreadPool();
+					XXThreadPool = new XXThreadPool();
 
 					// TaskQueue workQueue = new TaskQueue(queueSize);
 
@@ -243,11 +252,11 @@ public class GZHThreadPool {
 
 					// 创建线程工厂，自定义线程池名称
 
-					ThreadFactory onlineFactory = new ThreadFactoryBuilder().setNameFormat("GZHOnlinePool#%d-").build();
+					ThreadFactory onlineFactory = new ThreadFactoryBuilder().setNameFormat("XXOnlinePool#%d-").build();
 
 
 
-					ThreadFactory offlineFactory = new ThreadFactoryBuilder().setNameFormat("GZHOfflinePool#%d-").build();
+					ThreadFactory offlineFactory = new ThreadFactoryBuilder().setNameFormat("XXOfflinePool#%d-").build();
 
 
 
