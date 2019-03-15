@@ -1,7 +1,7 @@
 ---
 layout:     post
-title:      "kingbase预研"
-subtitle:   " \"国产数据库厂商kingbase\""
+title:      "支持国产数据库厂商kingbase"
+subtitle:   " \"支持国产数据库厂商kingbase\""
 date:       2016-01-01 06:00:00
 author:     "青乡"
 header-img: "img/post-bg-2015.jpg"
