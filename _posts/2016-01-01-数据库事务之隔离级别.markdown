@@ -178,8 +178,11 @@ where id in(1,10);  //操作整张表的数据
 如果没提交，只是暂时修改，因为未提交的数据可能回滚。
 
 
+# oracle
+默认读已提交
 
-
+# mysql
+默认可重复读
 
 # 参考
 
@@ -189,20 +192,8 @@ http://www.hollischuang.com/archives/900
 
 
 
-维基百科
+维基百科 http://comedsh.iteye.com/blog/698733
 
-
-
-http://comedsh.iteye.com/blog/698733
-
-
-
-
-# oracle
-默认读已提交
-
-# mysql
-默认可重复读
 
 
 
