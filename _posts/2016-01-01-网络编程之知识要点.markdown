@@ -174,6 +174,206 @@ linux1024默认。
 2）已经关闭  
 不能接受连接  
 
+# 单向流(读或写流)和双向流(通道Channel)
+1.早期  
+java io-写或读流类  
+
+2.后期  
+java nio-通道Channel，可以同时写读。
+
+# backlog
+#### 是什么
+tcp握手连接时候的状态
+1.半连接
+2.连接
+
+这两种状态都有对应的队列保存连接。backlog就是两种队列的总数量。
+
+
+#### 数量大小
+1.Unix早期  
+个位数  
+
+2.java  
+默认50。//后期比较大，默认十位数，生产环境千位数。
+
+//ServerSocket
+
+```
+/**
+
+     *
+
+     * Binds the <code>ServerSocket</code> to a specific address
+
+     * (IP address and port number).
+
+     * <p>
+
+     * If the address is <code>null</code>, then the system will pick up
+
+     * an ephemeral port and a valid local address to bind the socket.
+
+     * <P>
+
+     * The <code>backlog</code> argument is the requested maximum number of
+
+     * pending connections on the socket. Its exact semantics are implementation
+
+     * specific. In particular, an implementation may impose a maximum length
+
+     * or may choose to ignore the parameter altogther. The value provided
+
+     * should be greater than <code>0</code>. If it is less than or equal to
+
+     * <code>0</code>, then an implementation specific default will be used.
+
+     * @param   endpoint        The IP address & port number to bind to.
+
+     * @param   backlog         requested maximum length of the queue of
+
+     *                          incoming connections.
+
+     * @throws  IOException if the bind operation fails, or if the socket
+
+     *                     is already bound.
+
+     * @throws  SecurityException       if a <code>SecurityManager</code> is present and
+
+     * its <code>checkListen</code> method doesn't allow the operation.
+
+     * @throws  IllegalArgumentException if endpoint is a
+
+     *          SocketAddress subclass not supported by this socket
+
+     * @since 1.4
+
+     */
+
+    public void bind(SocketAddress endpoint, int backlog) throws IOException {
+
+        if (isClosed())
+
+            throw new SocketException("Socket is closed");
+
+        if (!oldImpl && isBound())
+
+            throw new SocketException("Already bound");
+
+        if (endpoint == null)
+
+            endpoint = new InetSocketAddress(0);
+
+        if (!(endpoint instanceof InetSocketAddress))
+
+            throw new IllegalArgumentException("Unsupported address type");
+
+        InetSocketAddress epoint = (InetSocketAddress) endpoint;
+
+        if (epoint.isUnresolved())
+
+            throw new SocketException("Unresolved address");
+
+        if (backlog < 1)
+
+          backlog = 50;
+
+        try {
+
+            SecurityManager security = System.getSecurityManager();
+
+            if (security != null)
+
+                security.checkListen(epoint.getPort());
+
+            getImpl().bind(epoint.getAddress(), epoint.getPort());
+
+            getImpl().listen(backlog);
+
+            bound = true;
+
+        } catch(SecurityException e) {
+
+            bound = false;
+
+            throw e;
+
+        } catch(IOException e) {
+
+            bound = false;
+
+            throw e;
+
+        }
+
+    }
+
+
+```
+
+# 多路复用选择器Selector
+#### 背景
+服务器客户端架构的程序，服务器端如何处理业务？三种解决方案。  
+1.单线程  
+一个线程处理所有任务
+
+2.多线程  
+每个线程处理一个任务
+
+3.还是单线程处理多个任务，但是使用多路复用选择器
+
+#### 优缺点
+1.单线程  
+优点  
+简单易用
+
+缺点  
+阻塞。只有当前面一个任务执行完之后，才能执行下一个任务，cpu被闲置。
+
+2.多线程  
+优点  
+解决了单线程的缺点。
+
+缺点  
+1）需要创建多线程，线程是很重的资源(即占内存空间很多，一个线程0.5~1M)  
+2）创建完之后，还需要维护线程的各种数据/状态  
+3）cpu在不同线程之间切换是很累的，就像人的脑子工作的时候被人打扰会很烦一样  
+
+3.多路复用  
+优点  
+解决多线程的缺点。
+
+缺点  
+编程复杂。
+
+#### 应用场景
+1.单线程  
+简单的小程序，用户量很多的话不适用。
+
+2.多线程  
+web服务器。例子tomcat等。
+
+3.多路复用  
+1）java nio-Selector  
+2）基于java nio的通信框架。例如netty mina。  
+3）基于通信框架的rpc框架。例如grpc dubbo ice。  
+
+#### 实现原理
+基于操作系统提供的功能-select()/epoll()函数。
+
+---
+select和epoll的区别  
+一样。epoll优化了多路复用选择器。
+
+#### 代码
+https://github.com/diedai/java-nio
+
+
+
+
+# 参考
+unix网络编程
+
 
 
 
